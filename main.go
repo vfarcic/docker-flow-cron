@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	s:= server.New("0.0.0.0", "8080")
+	s := server.New("0.0.0.0", "8080")
 	s.Execute()
 }

@@ -1,11 +1,12 @@
 package server
 
 import (
-	"net/http"
-	"fmt"
-	"encoding/json"
 	"../cron"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"net/http"
+	"log"
 )
 
 type Serve struct {
@@ -15,8 +16,8 @@ type Serve struct {
 }
 
 type Response struct {
-	Status   string
-	Message  string
+	Status  string
+	Message string
 }
 
 var httpListenAndServe = http.ListenAndServe
@@ -26,13 +27,14 @@ var httpWriterSetContentType = func(w http.ResponseWriter, value string) {
 
 var New = func(ip, port string) *Serve {
 	return &Serve{
-		IP: ip,
+		IP:   ip,
 		Port: port,
 		Cron: cron.New(),
 	}
 }
 
 func (s *Serve) Execute() error {
+	log.Printf("Starting Web server running on %s:%s\n", s.IP, s.Port)
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	if err := httpListenAndServe(address, s); err != nil {
 		return err

@@ -1,20 +1,20 @@
 package server
 
 import (
+	"../cron"
+	"encoding/json"
+	"fmt"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
-	"fmt"
-	"net/http"
-	"github.com/stretchr/testify/mock"
-	"../cron"
-	"strings"
-	"encoding/json"
 )
 
 type ServerTestSuite struct {
 	suite.Suite
-	ResponseWriter     *ResponseWriterMock
+	ResponseWriter *ResponseWriterMock
 }
 
 func (s *ServerTestSuite) SetupTest() {
@@ -88,8 +88,8 @@ func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsJobAndMe
 
 func (s *ServerTestSuite) Test_ServeHTTP_InvokesCronAddJob() {
 	expectedData := cron.JobData{
-		Name: "my-job",
-		Image: "my-image",
+		Name:     "my-job",
+		Image:    "my-image",
 		Schedule: "@yearly",
 	}
 	actualData := cron.JobData{}
@@ -128,8 +128,8 @@ func (s *ServerTestSuite) Test_ServeHTTP_ReturnsBadRequestWhenBodyIsNil() {
 
 func (s *ServerTestSuite) Test_ServeHTTP_InvokesInternalServerError_WhenAddJobFails() {
 	expectedData := cron.JobData{
-		Name: "my-job",
-		Image: "my-image",
+		Name:     "my-job",
+		Image:    "my-image",
 		Schedule: "@yearly",
 	}
 	js, _ := json.Marshal(expectedData)

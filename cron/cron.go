@@ -20,11 +20,11 @@ var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) error {
 }
 
 type JobData struct {
-	Name    string
-	Image   string
-	Command string
+	Name     string
+	Image    string
+	Command  string
 	Schedule string
-	Params  map[string]string
+	Params   map[string]string
 }
 
 var New = func() Croner {

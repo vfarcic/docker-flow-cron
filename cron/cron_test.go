@@ -72,11 +72,11 @@ func (s CronTestSuite) Test_AddJob_CreatesService() {
 
 func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenRestartConditionIsSetToAny() {
 	data := JobData{
-		Name:    "my-job",
-		Image:   "alpine",
+		Name:     "my-job",
+		Image:    "alpine",
 		Schedule: "@yearly",
-		Params:  map[string]string{"--restart-condition": "any"},
-		Command: `echo "Hello Cron!"`,
+		Params:   map[string]string{"--restart-condition": "any"},
+		Command:  `echo "Hello Cron!"`,
 	}
 	c := New()
 
@@ -116,10 +116,10 @@ func (s CronTestSuite) Test_AddJob_AddsRestartConditionNone_WhenNotSet() {
 
 func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenImageIsEmpty() {
 	data := JobData{
-		Name:    "my-job",
-		Image:   "",
+		Name:     "my-job",
+		Image:    "",
 		Schedule: "@yearly",
-		Command: `echo "Hello Cron!"`,
+		Command:  `echo "Hello Cron!"`,
 	}
 	c := New()
 
@@ -130,9 +130,9 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenImageIsEmpty() {
 
 func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenNameIsEmpty() {
 	data := JobData{
-		Image:   "my-image",
+		Image:    "my-image",
 		Schedule: "@yearly",
-		Command: `echo "Hello Cron!"`,
+		Command:  `echo "Hello Cron!"`,
 	}
 	c := New()
 
