@@ -4,6 +4,7 @@ import (
 	"fmt"
 	rcron "github.com/robfig/cron"
 	"os/exec"
+	"strings"
 )
 
 type Croner interface {
@@ -24,7 +25,7 @@ type JobData struct {
 	Image    string
 	Command  string
 	Schedule string
-	Params   map[string]string
+	Args     []string
 }
 
 var New = func() Croner {
@@ -36,8 +37,8 @@ var New = func() Croner {
 }
 
 func (c *Cron) AddJob(data JobData) error {
-	if data.Params == nil {
-		data.Params = map[string]string{}
+	if data.Args == nil {
+		data.Args = []string{}
 	}
 	if len(data.Name) == 0 {
 		return fmt.Errorf("--name is mandatory")
@@ -45,21 +46,37 @@ func (c *Cron) AddJob(data JobData) error {
 	if len(data.Image) == 0 {
 		return fmt.Errorf("image is mandatory")
 	}
+	cmdPrefix := "docker service create"
+	hasRestartCondition := false
+	cmdSuffix := ""
+	for _, v := range data.Args {
+		if strings.HasPrefix(v, "--restart-condition") {
+			if strings.Contains(v, "any") {
+				return fmt.Errorf("--restart-condition cannot be set to any")
+			}
+			hasRestartCondition = true
+		} else if strings.HasPrefix(v, "--name") {
+			return fmt.Errorf("--name argument is not allowed")
+		}
+		cmdSuffix = fmt.Sprintf("%s %s", cmdSuffix, v)
+	}
+	if !hasRestartCondition {
+		cmdSuffix = fmt.Sprintf("%s --restart-condition none", cmdSuffix)
+	}
+	cmdSuffix = fmt.Sprintf("%s %s %s", cmdSuffix, data.Image, data.Command)
+	cmdLabel := fmt.Sprintf(
+		`-l 'com.df.cron.command=%s%s'`,
+		cmdPrefix,
+		cmdSuffix,
+	)
 	cmd := fmt.Sprintf(
-		`docker service create -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s"`,
+		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" %s %s`,
+		cmdPrefix,
 		data.Name,
 		data.Schedule,
+		cmdLabel,
+		strings.Trim(cmdSuffix, " "),
 	)
-	if _, ok := data.Params["--restart-condition"]; !ok {
-		data.Params["--restart-condition"] = "none"
-	}
-	for k, v := range data.Params {
-		if k == "--restart-condition" && v == "any" {
-			return fmt.Errorf("--restart-condition cannot be set to any")
-		}
-		cmd = fmt.Sprintf("%s %s %s", cmd, k, v)
-	}
-	cmd = fmt.Sprintf("%s %s %s", cmd, data.Image, data.Command)
 	cronCmd := func() {
 		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 		if err != nil { // TODO: Test

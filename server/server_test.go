@@ -2,11 +2,13 @@ package server
 
 import (
 	"../cron"
+	"../docker"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/mock"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/stretchr/testify/suite"
 	"net/http"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -14,11 +16,26 @@ import (
 
 type ServerTestSuite struct {
 	suite.Suite
-	ResponseWriter *ResponseWriterMock
+	ResponseWriter ResponseWriterMock
+	Service        ServicerMock
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	s.ResponseWriter = getResponseWriterMock()
+	s.ResponseWriter = ResponseWriterMock{
+		WriteHeaderMock: func(header int) {
+		},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			return 0, nil
+		},
+	}
+	s.Service = ServicerMock{
+		GetServicesMock: func() ([]swarm.Service, error) {
+			return []swarm.Service{}, nil
+		},
+	}
 }
 
 func TestCronUnitTestSuite(t *testing.T) {
@@ -26,10 +43,18 @@ func TestCronUnitTestSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
+// New
+
+func (s *ServerTestSuite) Test_New_ReturnsError_WhenDockerClientFails() {
+	_, err := New("myIp", "1234", "this-is-not-a-socket")
+
+	s.Error(err)
+}
+
 // Execute
 
 func (s *ServerTestSuite) Test_Execute_InvokesHTTPListenAndServe() {
-	serve := New("myIp", "1234")
+	serve, _ := New("myIp", "1234", "unix:///var/run/docker.sock")
 	var actual string
 	expected := fmt.Sprintf("%s:%s", serve.IP, serve.Port)
 	httpListenAndServe = func(addr string, handler http.Handler) error {
@@ -52,7 +77,8 @@ func (s *ServerTestSuite) Test_Execute_ReturnsError_WhenHTTPListenAndServeFails(
 		return fmt.Errorf("This is an error")
 	}
 
-	actual := New("myIp", "1234").Execute()
+	serve, _ := New("myIp", "1234", "unix:///var/run/docker.sock")
+	actual := serve.Execute()
 
 	s.Error(actual)
 }
@@ -61,12 +87,23 @@ func (s *ServerTestSuite) Test_Execute_ReturnsError_WhenHTTPListenAndServeFails(
 
 func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatus404WhenURLIsUnknown() {
 	req, _ := http.NewRequest("GET", "/this/url/does/not/exist", nil)
+	actual := 0
+	mock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {
+			actual = header
+		},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+	}
 
 	srv := Serve{}
-	srv.ServeHTTP(s.ResponseWriter, req)
+	srv.ServeHTTP(mock, req)
 
-	s.ResponseWriter.AssertCalled(s.T(), "WriteHeader", 404)
+	s.Equal(404, actual)
 }
+
+// ServeHTTP > PUT
 
 func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsJobAndMethodIsPut() {
 	var actual string
@@ -119,11 +156,23 @@ func (s *ServerTestSuite) Test_ServeHTTP_ReturnsBadRequestWhenBodyIsNil() {
 			return nil
 		},
 	}
+	actual := 0
+	mock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {
+			actual = header
+		},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			return 0, nil
+		},
+	}
 
 	srv := Serve{Cron: cMock}
-	srv.ServeHTTP(s.ResponseWriter, req)
+	srv.ServeHTTP(mock, req)
 
-	s.ResponseWriter.AssertCalled(s.T(), "WriteHeader", 400)
+	s.Equal(400, actual)
 }
 
 func (s *ServerTestSuite) Test_ServeHTTP_InvokesInternalServerError_WhenAddJobFails() {
@@ -143,39 +192,111 @@ func (s *ServerTestSuite) Test_ServeHTTP_InvokesInternalServerError_WhenAddJobFa
 			return fmt.Errorf("This is an error")
 		},
 	}
+	actual := 0
+	mock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {
+			actual = header
+		},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			return 0, nil
+		},
+	}
 
 	srv := Serve{Cron: cMock}
+	srv.ServeHTTP(mock, req)
+
+	s.Equal(500, actual)
+}
+
+// ServeHTTP > GET
+
+func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsJobAndMethodIsGet() {
+	var actual string
+	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
+		actual = value
+	}
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
+
+	srv := Serve{Service: s.Service}
 	srv.ServeHTTP(s.ResponseWriter, req)
 
-	s.ResponseWriter.AssertCalled(s.T(), "WriteHeader", 500)
+	s.Equal("application/json", actual)
 }
+
+func (s *ServerTestSuite) Test_ServeHTTP_ReturnsListOfServices() {
+	defer exec.Command("/bin/sh", "-c", `docker service rm $(docker service ls)`).CombinedOutput()
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
+	jobs := map[string]cron.JobData{}
+	for i := 1; i <= 3; i++ {
+		name := fmt.Sprintf("my-job-%d", i)
+		cmd := fmt.Sprintf(
+			`docker service create \
+    -l 'com.df.cron=true' \
+    -l 'com.df.cron.name=my-job-%d' \
+    -l 'com.df.cron.schedule=@every 1s' \
+    -l 'com.df.cron.command=docker service create --restart-condition none alpine echo "Hello World!"' \
+    --constraint "node.labels.env != does-not-exist" \
+    --container-label 'container=label' \
+    --restart-condition none \
+    alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8 \
+    echo "Hello world!"`,
+			i,
+		)
+		exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+		jobs[name] = cron.JobData{
+			Name:     name,
+			Image:    "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8",
+			Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
+			Schedule: "@every 1s",
+		}
+	}
+	expected := Response{
+		Status: "OK",
+		Jobs:   jobs,
+	}
+	actual := Response{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+
+	service, _ := docker.New("unix:///var/run/docker.sock")
+
+	srv := Serve{Service: service}
+	srv.ServeHTTP(rwMock, req)
+
+	s.Equal(expected, actual)
+}
+
+// TODO: Test multiple services that belong to the same job
 
 // Mock
 
 type ResponseWriterMock struct {
-	mock.Mock
+	HeaderMock      func() http.Header
+	WriteMock       func([]byte) (int, error)
+	WriteHeaderMock func(int)
 }
 
-func (m *ResponseWriterMock) Header() http.Header {
-	m.Called()
-	return make(map[string][]string)
+func (m ResponseWriterMock) Header() http.Header {
+	return m.HeaderMock()
 }
 
-func (m *ResponseWriterMock) Write(data []byte) (int, error) {
-	params := m.Called(data)
-	return params.Int(0), params.Error(1)
+func (m ResponseWriterMock) Write(content []byte) (int, error) {
+	return m.WriteMock(content)
 }
 
-func (m *ResponseWriterMock) WriteHeader(header int) {
-	m.Called(header)
-}
-
-func getResponseWriterMock() *ResponseWriterMock {
-	mockObj := new(ResponseWriterMock)
-	mockObj.On("Header").Return(nil)
-	mockObj.On("Write", mock.Anything).Return(0, nil)
-	mockObj.On("WriteHeader", mock.Anything)
-	return mockObj
+func (m ResponseWriterMock) WriteHeader(header int) {
+	m.WriteHeaderMock(header)
 }
 
 type CronerMock struct {
@@ -189,4 +310,12 @@ func (m CronerMock) AddJob(data cron.JobData) error {
 
 func (m CronerMock) Stop() {
 	m.StopMock()
+}
+
+type ServicerMock struct {
+	GetServicesMock func() ([]swarm.Service, error)
+}
+
+func (m ServicerMock) GetServices() ([]swarm.Service, error) {
+	return m.GetServicesMock()
 }

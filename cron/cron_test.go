@@ -75,7 +75,7 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenRestartConditionIsSetToAny(
 		Name:     "my-job",
 		Image:    "alpine",
 		Schedule: "@yearly",
-		Params:   map[string]string{"--restart-condition": "any"},
+		Args:     []string{"--restart-condition any"},
 		Command:  `echo "Hello Cron!"`,
 	}
 	c := New()
@@ -89,7 +89,7 @@ func (s CronTestSuite) Test_AddJob_AddsRestartConditionNone_WhenNotSet() {
 	data := JobData{
 		Name:    "my-job",
 		Image:   "alpine",
-		Params:  map[string]string{},
+		Args:    []string{},
 		Command: `echo "Hello Cron!"`,
 	}
 	s.addJob1s(data)
@@ -103,6 +103,53 @@ func (s CronTestSuite) Test_AddJob_AddsRestartConditionNone_WhenNotSet() {
 		if len(id) > 0 {
 			out, _ := exec.Command("/bin/sh", "-c", `docker service inspect `+idString).CombinedOutput()
 			s.Contains(string(out), `"Condition": "none",`)
+			break
+		}
+		counter++
+		if counter >= 15 {
+			s.Fail("Service was not created")
+			break
+		}
+	}
+
+}
+
+func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenNameArgumentIsSet() {
+	data := JobData{
+		Name:     "my-job",
+		Image:    "alpine",
+		Schedule: "@yearly",
+		Args:     []string{"--name some-name"},
+		Command:  `echo "Hello Cron!"`,
+	}
+	c := New()
+
+	err := c.AddJob(data)
+
+	s.Error(err)
+}
+
+func (s CronTestSuite) Test_AddJob_AddsCommandLabel() {
+	data := JobData{
+		Name:    "my-job",
+		Image:   "alpine",
+		Args:    []string{},
+		Command: `echo "Hello Cron!"`,
+	}
+	s.addJob1s(data)
+	defer s.removeAllServices()
+
+	counter := 0
+	for {
+		time.Sleep(1 * time.Second)
+		id, _ := exec.Command("/bin/sh", "-c", `docker service ls -q -f label=com.df.cron=true`).CombinedOutput()
+		idString := strings.Trim(string(id), "\n")
+		if len(id) > 0 {
+			out, _ := exec.Command("/bin/sh", "-c", `docker service inspect `+idString).CombinedOutput()
+			s.Contains(
+				string(out),
+				`"com.df.cron.command": "docker service create --restart-condition none alpine echo \"Hello Cron!\""`,
+			)
 			break
 		}
 		counter++

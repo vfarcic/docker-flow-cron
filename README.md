@@ -10,7 +10,8 @@ The project should be able to:
 - [X] runs jobs detached from the cron so that they are unaffected in case of a failure
 - [X] run jobs as Swarm services
 - [X] schedule jobs through HTTP requests
-- [ ] retrieve the list of scheduled jobs through an HTTP request
+- [X] retrieve the list of scheduled jobs through an HTTP request
+- [ ] retrieve the list of executed jobs through an HTTP request
 - [ ] remove scheduled jobs
 - [ ] use `constraint`, `reserve-cpu`, `reserve-memory`, and `label` arguments
 - [ ] rerun failed jobs
@@ -23,12 +24,13 @@ The project should be able to:
 - [ ] get status of past jobs (status)
 - [ ] host pre-made jobs (e.g. docker prune, Mongo backup, etc)
 - [ ] remove job services after a defined period
+- [ ] create a CLI
 
 ## Tasks
 
 - [ ] develop PoC
 - [ ] integration tests
-- [ ] document
+- [ ] document (use cron.AddJob as the base for the rules)
 - [ ] release
 
 ## Assumptions

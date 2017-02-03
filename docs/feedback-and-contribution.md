@@ -39,7 +39,7 @@ go build -v -o docker-flow-cron && ./docker-flow-cron
 ### Unit Testing
 
 ```bash
-go test ./... -cover -run UnitTest
+go test ./... -cover -run UnitTest -p=1
 ```
 
 ### Building
