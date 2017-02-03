@@ -10,20 +10,19 @@ The project should be able to:
 - [X] runs jobs detached from the cron so that they are unaffected in case of a failure
 - [X] run jobs as Swarm services
 - [X] schedule jobs through HTTP requests
+- [X] use `constraint`, `reserve-cpu`, `reserve-memory`, and `label` arguments
+- [X] rerun failed jobs
 - [X] retrieve the list of scheduled jobs through an HTTP request
-- [ ] retrieve the list of executed jobs through an HTTP request
+- [ ] retrieve job details with the list of executions through an HTTP request
 - [ ] remove scheduled jobs
-- [ ] use `constraint`, `reserve-cpu`, `reserve-memory`, and `label` arguments
-- [ ] rerun failed jobs
-- [ ] send notifications when a job fails
-- [ ] provide dashboard for job monitoring (explore the option to extend Portainer or Grafana)
-- [ ] provide UI for administration (explore the option to extend Portainer)
 - [ ] be fault tolerant
 - [ ] after cron rescheduling, it does not start jobs that are already running
+- [ ] send notifications when a job fails
+- [ ] provide dashboard for job monitoring (explore the option to extend Portainer or Grafana)
 - [ ] time out jobs
-- [ ] get status of past jobs (status)
+- [ ] provide UI for administration (explore the option to extend Portainer)
 - [ ] host pre-made jobs (e.g. docker prune, Mongo backup, etc)
-- [ ] remove job services after a defined period
+- [ ] prune old executions (services)
 - [ ] create a CLI
 
 ## Tasks
@@ -32,6 +31,7 @@ The project should be able to:
 - [ ] integration tests
 - [ ] document (use cron.AddJob as the base for the rules)
 - [ ] release
+- [ ] reduce testing time or split into groups (e.g. unit tests, integration tests)
 
 ## Assumptions
 

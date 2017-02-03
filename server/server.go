@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"github.com/gorilla/mux"
 )
 
 type Serve struct {
@@ -22,6 +23,12 @@ type Response struct {
 	Status  string
 	Message string
 	Jobs    map[string]cron.JobData
+}
+
+type ResponseDetails struct {
+	Status  string
+	Message string
+	Job     cron.JobData
 }
 
 var httpListenAndServe = http.ListenAndServe
@@ -45,26 +52,31 @@ var New = func(ip, port, dockerHost string) (*Serve, error) {
 func (s *Serve) Execute() error {
 	log.Printf("Starting Web server running on %s:%s\n", s.IP, s.Port)
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
-	if err := httpListenAndServe(address, s); err != nil {
+	// TODO: Test routes
+	r := mux.NewRouter()
+	sr := r.PathPrefix("/v1/docker-flow-cron/job").Subrouter()
+	sr.HandleFunc("/", s.JobPutHandler).Methods("PUT")
+	sr.HandleFunc("/", s.JobGetHandler).Methods("GET")
+//	sr.HandleFunc("/{name}", s.JobDetailsHandler).Methods("GET")
+	if err := httpListenAndServe(address, r); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Serve) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	switch req.URL.Path {
-	case "/v1/docker-flow-cron/job":
-		if strings.EqualFold(req.Method, "put") {
-			s.addCronJob(w, req)
-		} else {
-			s.getServices(w, req)
-		}
-	default:
-		w.WriteHeader(http.StatusNotFound)
-	}
-}
+// TODO: Develop
+//func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
+////	vars := mux.Vars(req)
+////	println(vars["name"])
+//	response := ResponseDetails{
+//		Status: "OK",
+//	}
+//	httpWriterSetContentType(w, "application/json")
+//	js, _ := json.Marshal(response)
+//	w.Write(js)
+//}
 
-func (s *Serve) getServices(w http.ResponseWriter, req *http.Request) {
+func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 	services, _ := s.Service.GetServices()
 	jobs := map[string]cron.JobData{}
 	for _, service := range services {
@@ -93,8 +105,9 @@ func (s *Serve) getServices(w http.ResponseWriter, req *http.Request) {
 	w.Write(js)
 }
 
-func (s *Serve) addCronJob(w http.ResponseWriter, req *http.Request) {
-	response := Response{
+func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
+	// TODO: Add job to the response
+	response := ResponseDetails{
 		Status: "OK",
 	}
 	if req.Body == nil {
