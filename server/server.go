@@ -64,10 +64,9 @@ func (s *Serve) Execute() error {
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	// TODO: Test routes
 	r := mux.NewRouter().StrictSlash(true)
-	sr := r.PathPrefix("/v1/docker-flow-cron/job").Subrouter()
-	sr.HandleFunc("/", s.JobPutHandler).Methods("PUT")
-	sr.HandleFunc("/", s.JobGetHandler).Methods("GET")
-	sr.HandleFunc("/{jobName}", s.JobDetailsHandler).Methods("GET")
+	r.HandleFunc("/v1/docker-flow-cron/job", s.JobPutHandler).Methods("PUT")
+	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
+	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDetailsHandler).Methods("GET")
 	if err := httpListenAndServe(address, r); err != nil {
 		return err
 	}
@@ -150,12 +149,11 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 	response := ResponseDetails{
 		Status:  "OK",
-		Message: "",
 	}
 	if req.Body == nil {
 		w.WriteHeader(http.StatusBadRequest)
-		response.Message = "Request body is mandatory"
 		response.Status = "NOK"
+		response.Message = "Request body is mandatory"
 	} else {
 		defer func() { req.Body.Close() }()
 		body, _ := ioutil.ReadAll(req.Body)
@@ -164,8 +162,10 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 		response.Job = data
 		if err := s.Cron.AddJob(data); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			response.Message = err.Error()
 			response.Status = "NOK"
+			response.Message = err.Error()
+		} else {
+			response.Message = fmt.Sprintf("Job %s has been scheduled", data.Name)
 		}
 	}
 	httpWriterSetContentType(w, "application/json")

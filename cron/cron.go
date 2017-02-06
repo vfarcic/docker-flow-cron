@@ -77,6 +77,7 @@ func (c *Cron) AddJob(data JobData) error {
 		cmdLabel,
 		strings.Trim(cmdSuffix, " "),
 	)
+	println("COMMAND:", cmd)
 	cronCmd := func() {
 		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 		if err != nil { // TODO: Test

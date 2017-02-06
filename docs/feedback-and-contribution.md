@@ -44,53 +44,15 @@ go test ./... -cover -run UnitTest -p=1
 
 ### Building
 
-TODO
-
 ```bash
 docker-compose -f docker-compose-test.yml run --rm unit
 
-docker build -t $DOCKER_HUB_USER/docker-flow-proxy .
+docker build -t $DOCKER_HUB_USER/docker-flow-cron .
 ```
 
 ### The Complete Cycle (Unit, Build, Staging)
 
-#### Setup
-
 TODO
-
-```bash
-export HOST_IP=[...] # Change to the IP of your host
-
-export DOCKER_HUB_USER=vfarcic # Change vfarcic to your user
-```
-
-#### Unit Tests & Build
-
-TODO
-
-```bash
-docker-compose -f docker-compose-test.yml run --rm unit
-
-docker build -t $DOCKER_HUB_USER/docker-flow-proxy .
-```
-
-#### Staging (Integration) Tests
-
-TODO
-
-```bash
-docker-compose -f docker-compose-test.yml up -d staging-dep
-
-docker-compose -f docker-compose-test.yml run --rm staging
-
-docker-compose -f docker-compose-test.yml down
-
-docker tag $DOCKER_HUB_USER/docker-flow-proxy $DOCKER_HUB_USER/docker-flow-proxy:beta
-
-docker push $DOCKER_HUB_USER/docker-flow-proxy:beta
-
-docker-compose -f docker-compose-test.yml run --rm staging-swarm
-```
 
 ### Pull Request
 

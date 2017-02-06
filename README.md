@@ -12,8 +12,10 @@ The project should be able to:
 - [X] schedule jobs through HTTP requests
 - [X] use `constraint`, `reserve-cpu`, `reserve-memory`, and `label` arguments
 - [X] rerun failed jobs
-- [X] retrieve the list of scheduled jobs through an HTTP request
-- [X] retrieve job details with the list of executions through an HTTP request
+- [X] retrieve the list of scheduled jobs
+- [X] retrieve job details
+- [X] retrieve job executions
+- [ ] retrieve job execution logs
 - [ ] remove scheduled jobs
 - [ ] be fault tolerant
 - [ ] after cron rescheduling, it does not start jobs that are already running
@@ -24,6 +26,7 @@ The project should be able to:
 - [ ] host pre-made jobs (e.g. docker prune, Mongo backup, etc)
 - [ ] prune old executions (services)
 - [ ] create a CLI
+- [ ] provide commands that will allow users to filter services with Docker client
 
 ## Tasks
 
