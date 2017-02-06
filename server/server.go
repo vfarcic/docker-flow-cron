@@ -10,7 +10,11 @@ import (
 	"net/http"
 	"strings"
 	"github.com/gorilla/mux"
+	"github.com/docker/docker/api/types/swarm"
+	"time"
 )
+
+var muxVars = mux.Vars
 
 type Serve struct {
 	IP      string
@@ -25,10 +29,16 @@ type Response struct {
 	Jobs    map[string]cron.JobData
 }
 
+type Execution struct {
+	CreatedAt time.Time
+	Status    swarm.TaskStatus
+}
+
 type ResponseDetails struct {
 	Status  string
 	Message string
 	Job     cron.JobData
+	Executions []Execution
 }
 
 var httpListenAndServe = http.ListenAndServe
@@ -53,31 +63,67 @@ func (s *Serve) Execute() error {
 	log.Printf("Starting Web server running on %s:%s\n", s.IP, s.Port)
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	// TODO: Test routes
-	r := mux.NewRouter()
+	r := mux.NewRouter().StrictSlash(true)
 	sr := r.PathPrefix("/v1/docker-flow-cron/job").Subrouter()
 	sr.HandleFunc("/", s.JobPutHandler).Methods("PUT")
 	sr.HandleFunc("/", s.JobGetHandler).Methods("GET")
-//	sr.HandleFunc("/{name}", s.JobDetailsHandler).Methods("GET")
+	sr.HandleFunc("/{jobName}", s.JobDetailsHandler).Methods("GET")
 	if err := httpListenAndServe(address, r); err != nil {
 		return err
 	}
 	return nil
 }
 
-// TODO: Develop
-//func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
-////	vars := mux.Vars(req)
-////	println(vars["name"])
-//	response := ResponseDetails{
-//		Status: "OK",
-//	}
-//	httpWriterSetContentType(w, "application/json")
-//	js, _ := json.Marshal(response)
-//	w.Write(js)
-//}
+func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
+	jobName := muxVars(req)["jobName"]
+	services, err := s.Service.GetServices(jobName)
+	httpWriterSetContentType(w, "application/json")
+	response := ResponseDetails{
+		Status: "OK",
+		Message: "",
+		Job:    cron.JobData{},
+		Executions: []Execution{},
+	}
+	if err != nil {
+		response.Status = "NOK"
+		response.Message = err.Error()
+	} else {
+		index := len(services) - 1
+		if index < 0 {
+			response.Status = "NOK"
+			response.Message = "Could not find the job"
+		} else {
+			service := services[index]
+			tasks, err := s.Service.GetTasks(jobName)
+			if err != nil {
+				response.Status = "NOK"
+				response.Message = err.Error()
+			} else {
+				executions := []Execution{}
+				for _, t := range tasks {
+					execution := Execution{
+						CreatedAt: t.CreatedAt,
+						Status: t.Status,
+					}
+					executions = append(executions, execution)
+				}
+				response.Job = s.getJob(service)
+				response.Executions = executions
+			}
+		}
+	}
+	js, _ := json.Marshal(response)
+	w.Write(js)
+}
 
 func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
-	services, _ := s.Service.GetServices()
+	status := "OK"
+	message := ""
+	services, err := s.Service.GetServices("")
+	if err != nil {
+		status = "NOK"
+		message = err.Error()
+	}
 	jobs := map[string]cron.JobData{}
 	for _, service := range services {
 		command := ""
@@ -89,15 +135,11 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		name := service.Spec.Annotations.Labels["com.df.cron.name"]
-		jobs[name] = cron.JobData{
-			Name:     name,
-			Image:    service.Spec.TaskTemplate.ContainerSpec.Image,
-			Command:  service.Spec.Annotations.Labels["com.df.cron.command"],
-			Schedule: service.Spec.Annotations.Labels["com.df.cron.schedule"],
-		}
+		jobs[name] = s.getJob(service)
 	}
 	response := Response{
-		Status: "OK",
+		Status: status,
+		Message: message,
 		Jobs:   jobs,
 	}
 	httpWriterSetContentType(w, "application/json")
@@ -106,9 +148,9 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
-	// TODO: Add job to the response
 	response := ResponseDetails{
 		Status: "OK",
+		Message: "",
 	}
 	if req.Body == nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -119,6 +161,7 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 		body, _ := ioutil.ReadAll(req.Body)
 		data := cron.JobData{}
 		json.Unmarshal(body, &data)
+		response.Job = data
 		if err := s.Cron.AddJob(data); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			response.Message = err.Error()
@@ -128,4 +171,22 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 	httpWriterSetContentType(w, "application/json")
 	js, _ := json.Marshal(response)
 	w.Write(js)
+}
+
+func (s *Serve) getJob(service swarm.Service) cron.JobData {
+	command := ""
+	for _, v := range service.Spec.TaskTemplate.ContainerSpec.Args {
+		if strings.Contains(v, " ") {
+			command = fmt.Sprintf(`%s "%s"`, command, v)
+		} else {
+			command = fmt.Sprintf(`%s %s`, command, v)
+		}
+	}
+	name := service.Spec.Annotations.Labels["com.df.cron.name"]
+	return cron.JobData{
+		Name:     name,
+		Image:    service.Spec.TaskTemplate.ContainerSpec.Image,
+		Command:  service.Spec.Annotations.Labels["com.df.cron.command"],
+		Schedule: service.Spec.Annotations.Labels["com.df.cron.schedule"],
+	}
 }

@@ -6,13 +6,14 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
-	"log"
+	"fmt"
 )
 
 const dockerApiVersion = "v1.24"
 
 type Servicer interface {
-	GetServices() ([]swarm.Service, error)
+	GetServices(jobName string) ([]swarm.Service, error)
+	GetTasks(jobName string) ([]swarm.Task, error)
 }
 
 type Service struct {
@@ -23,19 +24,31 @@ func New(host string) (*Service, error) {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	c, err := client.NewClient(host, dockerApiVersion, nil, defaultHeaders)
 	if err != nil {
-		log.Printf(err.Error())
 		return &Service{}, err
 	}
 	return &Service{Client: c}, nil
 }
 
-func (s *Service) GetServices() ([]swarm.Service, error) {
+func (s *Service) GetServices(jobName string) ([]swarm.Service, error) {
 	filter := filters.NewArgs()
 	filter.Add("label", "com.df.cron=true")
+	if len(jobName) > 0 {
+		filter.Add("label", fmt.Sprintf("com.df.cron.name=%s", jobName))
+	}
 	services, err := s.Client.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
 	if err != nil {
-		log.Printf(err.Error())
 		return []swarm.Service{}, err
 	}
 	return services, nil
+}
+
+func (s *Service) GetTasks(jobName string) ([]swarm.Task, error) {
+	filter := filters.NewArgs()
+	filter.Add("label", "com.df.cron=true")
+	filter.Add("label", fmt.Sprintf("com.df.cron.name=%s", jobName))
+	tasks, err := s.Client.TaskList(context.Background(), types.TaskListOptions{Filters: filter})
+	if err != nil {
+		return []swarm.Task{}, err
+	}
+	return tasks, nil
 }

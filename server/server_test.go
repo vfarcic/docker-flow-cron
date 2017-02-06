@@ -32,8 +32,11 @@ func (s *ServerTestSuite) SetupTest() {
 		},
 	}
 	s.Service = ServicerMock{
-		GetServicesMock: func() ([]swarm.Service, error) {
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
 			return []swarm.Service{}, nil
+		},
+		GetTasksMock: func(jobName string) ([]swarm.Task, error) {
+			return []swarm.Task{}, nil
 		},
 	}
 }
@@ -70,9 +73,7 @@ func (s *ServerTestSuite) Test_Execute_InvokesHTTPListenAndServe() {
 
 func (s *ServerTestSuite) Test_Execute_ReturnsError_WhenHTTPListenAndServeFails() {
 	orig := httpListenAndServe
-	defer func() {
-		httpListenAndServe = orig
-	}()
+	defer func() {httpListenAndServe = orig}()
 	httpListenAndServe = func(addr string, handler http.Handler) error {
 		return fmt.Errorf("This is an error")
 	}
@@ -226,68 +227,204 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsListOfServices() {
 	s.Equal(expected, actual)
 }
 
+func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetServicesFail() {
+	message := "This is an error"
+	mock := ServicerMock{
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, fmt.Errorf(message)
+		},
+	}
+	actual := Response{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
+	expected := Response{
+		Status: "NOK",
+		Message: message,
+		Jobs:   map[string]cron.JobData{},
+	}
+
+	srv := Serve{Service: mock}
+	srv.JobGetHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+}
+
+
 // JobDetailsHandler
 
-// TODO: Continue
-//func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
-//	defer exec.Command("/bin/sh", "-c", `docker service rm $(docker service ls)`).CombinedOutput()
-//	name := "my-job"
-//	req, _ := http.NewRequest(
-//		"GET",
-//		fmt.Sprintf("/v1/docker-flow-cron/job/%s", name),
-//		nil,
-//	)
-//	cmdf := `docker service create \
-//    -l 'com.df.cron=true' \
-//    -l 'com.df.cron.name=%s' \
-//    -l 'com.df.cron.schedule=@every 1s' \
-//    -l 'com.df.cron.command=docker service create --restart-condition none alpine echo "Hello World!"' \
-//    --constraint "node.labels.env != does-not-exist" \
-//    --container-label 'container=label' \
-//    --restart-condition none \
-//    alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8 \
-//    echo "Hello world!"`
-//	for i := 1; i <= 3; i++ {
-//		cmd := fmt.Sprintf(
-//			cmdf,
-//			name,
-//		)
-//		exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
-//	}
-//	cmd := fmt.Sprintf(
-//		cmdf,
-//		"some-other-job",
-//	)
-//	exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
-//	job := cron.JobData{
-//		Name:     name,
-//		Image:    "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8",
-//		Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
-//		Schedule: "@every 1s",
-//	}
-//	expected := ResponseDetails{
-//		Status: "OK",
-//		Job:    job,
-//	}
-//	actual := ResponseDetails{}
-//	rwMock := ResponseWriterMock{
-//		WriteHeaderMock: func(header int) {},
-//		HeaderMock: func() http.Header {
-//			return http.Header{}
-//		},
-//		WriteMock: func(content []byte) (int, error) {
-//			json.Unmarshal(content, &actual)
-//			return 0, nil
-//		},
-//	}
-//
-//	service, _ := docker.New("unix:///var/run/docker.sock")
-//
-//	srv := Serve{Service: service}
-//	srv.JobDetailsHandler(rwMock, req)
-//
-//	s.Equal(expected, actual)
-//}
+func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
+	muxVarsOrig := muxVars
+	defer func(){muxVars = muxVarsOrig}()
+	muxVars = func(r *http.Request) map[string]string {
+		return map[string]string{"jobName": "my-job"}
+	}
+	defer exec.Command("/bin/sh", "-c", `docker service rm $(docker service ls)`).CombinedOutput()
+	name := "my-job"
+	req, _ := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/v1/docker-flow-cron/job/%s", name),
+		nil,
+	)
+	image := "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8"
+	executions := []Execution{}
+	cmdf := `docker service create \
+    -l 'com.df.cron=true' \
+    -l 'com.df.cron.name=%s' \
+    -l 'com.df.cron.schedule=@every 1s' \
+    -l 'com.df.cron.command=docker service create --restart-condition none alpine echo "Hello World!"' \
+    --constraint "node.labels.env != does-not-exist" \
+    --container-label 'container=label' \
+    --restart-condition none %s \
+    echo "Hello world!"`
+	for _, jobName := range []string{"my-job", "my-job", "some-other-job"} {
+		cmd := fmt.Sprintf(
+			cmdf,
+			jobName,
+			image,
+		)
+		exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+		if jobName == "my-job" {
+			executions = append(executions, Execution{})
+		}
+	}
+	job := cron.JobData{
+		Name:     name,
+		Image:    image,
+		Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
+		Schedule: "@every 1s",
+	}
+	expected := ResponseDetails{
+		Status: "OK",
+		Job:    job,
+		Executions: executions,
+	}
+	actual := ResponseDetails{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	service, _ := docker.New("unix:///var/run/docker.sock")
+
+	srv := Serve{Service: service}
+	srv.JobDetailsHandler(rwMock, req)
+
+	s.Equal(expected.Job, actual.Job)
+	s.Equal(2, len(actual.Executions))
+	s.False(actual.Executions[0].CreatedAt.IsZero())
+	s.NotNil(actual.Executions[0].Status)
+}
+
+func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetServicesFail() {
+	message := "This is an get services error"
+	mock := ServicerMock{
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, fmt.Errorf(message)
+		},
+		GetTasksMock: func(jobName string) ([]swarm.Task, error) {
+			return []swarm.Task{}, nil
+		},
+	}
+	actual := ResponseDetails{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job/my-job", nil)
+	expected := ResponseDetails{
+		Status: "NOK",
+		Message: message,
+		Job:   cron.JobData{},
+		Executions: []Execution{},
+	}
+
+	srv := Serve{Service: mock}
+	srv.JobDetailsHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+}
+
+func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenServiceDoesNotExist() {
+	actual := ResponseDetails{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job/my-job", nil)
+	expected := ResponseDetails{
+		Status: "NOK",
+		Message: "Could not find the job",
+		Job:   cron.JobData{},
+		Executions: []Execution{},
+	}
+
+	srv := Serve{Service: s.Service}
+	srv.JobDetailsHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+}
+
+func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail() {
+	message := "This is an get tasks error"
+	mock := ServicerMock{
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{swarm.Service{}}, nil
+		},
+		GetTasksMock: func(jobName string) ([]swarm.Task, error) {
+			return []swarm.Task{}, fmt.Errorf(message)
+		},
+	}
+	actual := ResponseDetails{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job/my-job", nil)
+	expected := ResponseDetails{
+		Status: "NOK",
+		Message: message,
+		Job:   cron.JobData{},
+		Executions: []Execution{},
+	}
+
+	srv := Serve{Service: mock}
+	srv.JobDetailsHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+}
+
 
 // Mock
 
@@ -323,9 +460,14 @@ func (m CronerMock) Stop() {
 }
 
 type ServicerMock struct {
-	GetServicesMock func() ([]swarm.Service, error)
+	GetServicesMock func(jobName string) ([]swarm.Service, error)
+	GetTasksMock func(jobName string) ([]swarm.Task, error)
 }
 
-func (m ServicerMock) GetServices() ([]swarm.Service, error) {
-	return m.GetServicesMock()
+func (m ServicerMock) GetServices(jobName string) ([]swarm.Service, error) {
+	return m.GetServicesMock(jobName)
+}
+
+func (m ServicerMock) GetTasks(jobName string) ([]swarm.Task, error) {
+	return m.GetTasksMock(jobName)
 }

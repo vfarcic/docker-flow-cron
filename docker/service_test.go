@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 type ServiceTestSuite struct {
@@ -40,12 +41,12 @@ func (s *ServiceTestSuite) Test_New_SetsClient() {
 // GetServices
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
+	defer s.removeAllServices()
 	s.createTestService("util-1", "-l com.df.cron=true")
 	s.createTestService("util-2", "-l com.df.test=true")
-	defer s.removeAllServices()
 	services, _ := New("unix:///var/run/docker.sock")
 
-	actual, _ := services.GetServices()
+	actual, _ := services.GetServices("")
 
 	if len(actual) == 0 {
 		s.Fail("No services found")
@@ -59,7 +60,53 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
 	services, _ := New("unix:///this/socket/does/not/exist")
 
-	_, err := services.GetServices()
+	_, err := services.GetServices("")
+
+	s.Error(err)
+}
+
+func (s *ServiceTestSuite) Test_GetServices_ReturnsFilteredServices() {
+	defer s.removeAllServices()
+	s.createTestService("util-3", "-l com.df.cron.name=my-job -l com.df.cron=true")
+	s.createTestService("util-4", "-l com.df.cron.name=my-job -l com.df.cron=true")
+	s.createTestService("util-5", "-l com.df.cron.name=some-other-job -l com.df.cron=true")
+	services, _ := New("unix:///var/run/docker.sock")
+
+	actual, _ := services.GetServices("my-job")
+
+	if len(actual) == 0 {
+		s.Fail("No services found")
+	} else {
+		s.Equal(2, len(actual))
+	}
+}
+
+// GetTasks
+
+func (s *ServiceTestSuite) Test_GetTasks_ReturnsFilteredTasks() {
+	defer s.removeAllServices()
+	s.createTestService("util-6", "-l com.df.cron.name=my-job -l com.df.cron=true")
+	s.createTestService("util-7", "-l com.df.cron.name=my-job -l com.df.cron=true")
+	s.createTestService("util-8", "-l com.df.cron.name=some-other-job -l com.df.cron=true")
+	services, _ := New("unix:///var/run/docker.sock")
+	actual := 0
+
+	for i := 0; i < 100; i++ {
+		t, _ := services.GetTasks("my-job")
+		actual = len(t)
+		if actual == 2 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	s.Equal(2, actual)
+}
+
+func (s *ServiceTestSuite) Test_GetTasks_ReturnsError_WhenServiceListFails() {
+	services, _ := New("unix:///this/socket/does/not/exist")
+
+	_, err := services.GetTasks("some-job")
 
 	s.Error(err)
 }
@@ -68,7 +115,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 
 func (s *ServiceTestSuite) createTestService(name, args string) {
 	cmd := fmt.Sprintf(
-		`docker service create --name %s %s alpine sleep 10000000`,
+		`docker service create --name %s --restart-condition none %s alpine sleep 10000000`,
 		name,
 		args,
 	)

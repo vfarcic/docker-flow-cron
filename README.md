@@ -13,7 +13,7 @@ The project should be able to:
 - [X] use `constraint`, `reserve-cpu`, `reserve-memory`, and `label` arguments
 - [X] rerun failed jobs
 - [X] retrieve the list of scheduled jobs through an HTTP request
-- [ ] retrieve job details with the list of executions through an HTTP request
+- [X] retrieve job details with the list of executions through an HTTP request
 - [ ] remove scheduled jobs
 - [ ] be fault tolerant
 - [ ] after cron rescheduling, it does not start jobs that are already running
