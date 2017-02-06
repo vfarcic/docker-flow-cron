@@ -73,7 +73,7 @@ func (s *ServerTestSuite) Test_Execute_InvokesHTTPListenAndServe() {
 
 func (s *ServerTestSuite) Test_Execute_ReturnsError_WhenHTTPListenAndServeFails() {
 	orig := httpListenAndServe
-	defer func() {httpListenAndServe = orig}()
+	defer func() { httpListenAndServe = orig }()
 	httpListenAndServe = func(addr string, handler http.Handler) error {
 		return fmt.Errorf("This is an error")
 	}
@@ -247,9 +247,9 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetServicesFail() 
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
 	expected := Response{
-		Status: "NOK",
+		Status:  "NOK",
 		Message: message,
-		Jobs:   map[string]cron.JobData{},
+		Jobs:    map[string]cron.JobData{},
 	}
 
 	srv := Serve{Service: mock}
@@ -258,12 +258,11 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetServicesFail() 
 	s.Equal(expected, actual)
 }
 
-
 // JobDetailsHandler
 
 func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 	muxVarsOrig := muxVars
-	defer func(){muxVars = muxVarsOrig}()
+	defer func() { muxVars = muxVarsOrig }()
 	muxVars = func(r *http.Request) map[string]string {
 		return map[string]string{"jobName": "my-job"}
 	}
@@ -303,8 +302,8 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 		Schedule: "@every 1s",
 	}
 	expected := ResponseDetails{
-		Status: "OK",
-		Job:    job,
+		Status:     "OK",
+		Job:        job,
 		Executions: executions,
 	}
 	actual := ResponseDetails{}
@@ -352,9 +351,9 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetServicesFai
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job/my-job", nil)
 	expected := ResponseDetails{
-		Status: "NOK",
-		Message: message,
-		Job:   cron.JobData{},
+		Status:     "NOK",
+		Message:    message,
+		Job:        cron.JobData{},
 		Executions: []Execution{},
 	}
 
@@ -378,9 +377,9 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenServiceDoesNot
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job/my-job", nil)
 	expected := ResponseDetails{
-		Status: "NOK",
-		Message: "Could not find the job",
-		Job:   cron.JobData{},
+		Status:     "NOK",
+		Message:    "Could not find the job",
+		Job:        cron.JobData{},
 		Executions: []Execution{},
 	}
 
@@ -413,9 +412,9 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail()
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job/my-job", nil)
 	expected := ResponseDetails{
-		Status: "NOK",
-		Message: message,
-		Job:   cron.JobData{},
+		Status:     "NOK",
+		Message:    message,
+		Job:        cron.JobData{},
 		Executions: []Execution{},
 	}
 
@@ -424,7 +423,6 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail()
 
 	s.Equal(expected, actual)
 }
-
 
 // Mock
 
@@ -461,7 +459,7 @@ func (m CronerMock) Stop() {
 
 type ServicerMock struct {
 	GetServicesMock func(jobName string) ([]swarm.Service, error)
-	GetTasksMock func(jobName string) ([]swarm.Task, error)
+	GetTasksMock    func(jobName string) ([]swarm.Task, error)
 }
 
 func (m ServicerMock) GetServices(jobName string) ([]swarm.Service, error) {

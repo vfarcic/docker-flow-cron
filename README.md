@@ -28,7 +28,6 @@ The project should be able to:
 ## Tasks
 
 - [ ] develop PoC
-- [ ] integration tests
 - [ ] document (use cron.AddJob as the base for the rules)
 - [ ] release
 - [ ] reduce testing time or split into groups (e.g. unit tests, integration tests)

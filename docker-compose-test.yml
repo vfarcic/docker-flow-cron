@@ -4,9 +4,10 @@ version: '2'
 services:
 
   unit:
-    image: golang:1.6
+    image: vfarcic/docker-flow-cron-test
     volumes:
       - .:/usr/src/myapp
-      - /tmp/go:/go
+      - ./go:/go
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /usr/src/myapp
-    command: sh -c "go get -d -v -t && go test --cover ./... --run UnitTest -p=1 && go build -v -o docker-flow-cron"
+    command: bash -c "go get -d -v -t && go test --cover ./... -p=1 && go build -v -o docker-flow-cron"

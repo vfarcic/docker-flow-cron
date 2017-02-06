@@ -5,12 +5,12 @@ import (
 	"../docker"
 	"encoding/json"
 	"fmt"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
-	"github.com/gorilla/mux"
-	"github.com/docker/docker/api/types/swarm"
 	"time"
 )
 
@@ -35,9 +35,9 @@ type Execution struct {
 }
 
 type ResponseDetails struct {
-	Status  string
-	Message string
-	Job     cron.JobData
+	Status     string
+	Message    string
+	Job        cron.JobData
 	Executions []Execution
 }
 
@@ -79,9 +79,9 @@ func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
 	services, err := s.Service.GetServices(jobName)
 	httpWriterSetContentType(w, "application/json")
 	response := ResponseDetails{
-		Status: "OK",
-		Message: "",
-		Job:    cron.JobData{},
+		Status:     "OK",
+		Message:    "",
+		Job:        cron.JobData{},
 		Executions: []Execution{},
 	}
 	if err != nil {
@@ -103,7 +103,7 @@ func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
 				for _, t := range tasks {
 					execution := Execution{
 						CreatedAt: t.CreatedAt,
-						Status: t.Status,
+						Status:    t.Status,
 					}
 					executions = append(executions, execution)
 				}
@@ -138,9 +138,9 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 		jobs[name] = s.getJob(service)
 	}
 	response := Response{
-		Status: status,
+		Status:  status,
 		Message: message,
-		Jobs:   jobs,
+		Jobs:    jobs,
 	}
 	httpWriterSetContentType(w, "application/json")
 	js, _ := json.Marshal(response)
@@ -149,7 +149,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 	response := ResponseDetails{
-		Status: "OK",
+		Status:  "OK",
 		Message: "",
 	}
 	if req.Body == nil {
