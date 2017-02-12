@@ -30,7 +30,5 @@ curl -XGET \
 curl -XGET \
     "http://localhost:8080/v1/docker-flow-cron/job/my-job"
 
-# Stop docker-flow-cron
-
-./docker-flow-cron
+# retrieve job execution logs (`docker service logs`)
 ```

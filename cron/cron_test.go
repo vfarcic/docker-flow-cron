@@ -7,18 +7,37 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"fmt"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 type CronTestSuite struct {
 	suite.Suite
+	Service        ServicerMock
 }
 
 func (s *CronTestSuite) SetupTest() {
+	s.Service = ServicerMock{
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, nil
+		},
+		GetTasksMock: func(jobName string) ([]swarm.Task, error) {
+			return []swarm.Task{}, nil
+		},
+	}
 }
 
 func TestCronUnitTestSuite(t *testing.T) {
 	s := new(CronTestSuite)
 	suite.Run(t, s)
+}
+
+// New
+
+func (s *CronTestSuite) Test_New_ReturnsError_WhenDockerClientFails() {
+	_, err := New("this-is-not-a-socket")
+
+	s.Error(err)
 }
 
 // AddJob
@@ -78,7 +97,7 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenRestartConditionIsSetToAny(
 		Args:     []string{"--restart-condition any"},
 		Command:  `echo "Hello Cron!"`,
 	}
-	c := New()
+	c, _ := New("unix:///var/run/docker.sock")
 
 	err := c.AddJob(data)
 
@@ -122,7 +141,7 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenNameArgumentIsSet() {
 		Args:     []string{"--name some-name"},
 		Command:  `echo "Hello Cron!"`,
 	}
-	c := New()
+	c, _ := New("unix:///var/run/docker.sock")
 
 	err := c.AddJob(data)
 
@@ -168,7 +187,7 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenImageIsEmpty() {
 		Schedule: "@yearly",
 		Command:  `echo "Hello Cron!"`,
 	}
-	c := New()
+	c, _ := New("unix:///var/run/docker.sock")
 
 	err := c.AddJob(data)
 
@@ -181,15 +200,66 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenNameIsEmpty() {
 		Schedule: "@yearly",
 		Command:  `echo "Hello Cron!"`,
 	}
-	c := New()
+	c, _ := New("unix:///var/run/docker.sock")
 
 	err := c.AddJob(data)
 
 	s.Error(err)
 }
 
+// GetJobs
+
+func (s CronTestSuite) Test_GetJobs_ReturnsListOfJobs() {
+	expected := map[string]JobData{}
+	defer s.removeAllServices()
+	for i := 1; i <= 3; i++ {
+		name := fmt.Sprintf("my-job-%d", i)
+		cmd := fmt.Sprintf(
+			`docker service create \
+    -l 'com.df.cron=true' \
+    -l 'com.df.cron.name=%s' \
+    -l 'com.df.cron.schedule=@every 1s' \
+    -l 'com.df.cron.command=docker service create --restart-condition none alpine echo "Hello World!"' \
+    --constraint "node.labels.env != does-not-exist" \
+    --container-label 'container=label' \
+    --restart-condition none \
+    alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8 \
+    echo "Hello world!"`,
+			name,
+		)
+		exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+		expected[name] = JobData{
+			Name:     name,
+			Image:    "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8",
+			Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
+			Schedule: "@every 1s",
+		}
+	}
+
+	c, _ := New("unix:///var/run/docker.sock")
+	actual, _ := c.GetJobs()
+
+	s.Equal(expected, actual)
+}
+
+func (s *CronTestSuite) Test_GetJobs_ReturnsError_WhenGetServicesFail() {
+	message := "This is an error"
+	mock := ServicerMock{
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, fmt.Errorf(message)
+		},
+	}
+
+	c := Cron{Cron: rcron.New(), Service: mock}
+	_, err := c.GetJobs()
+
+	s.Error(err)
+}
+
+// Util
+
 func (s CronTestSuite) addJob1s(d JobData) {
-	c := New()
+	c, _ := New("unix:///var/run/docker.sock")
 	d.Schedule = "@every 1s"
 	c.AddJob(d)
 	time.Sleep(1 * time.Second)
@@ -202,4 +272,22 @@ func (s CronTestSuite) removeAllServices() {
 		"-c",
 		`docker service rm $(docker service ls -q -f label=com.df.cron=true)`,
 	).CombinedOutput()
+}
+
+type ServicerMock struct {
+	GetServicesMock func(jobName string) ([]swarm.Service, error)
+	GetTasksMock    func(jobName string) ([]swarm.Task, error)
+	RemoveServicesMock func(jobName string) error
+}
+
+func (m ServicerMock) GetServices(jobName string) ([]swarm.Service, error) {
+	return m.GetServicesMock(jobName)
+}
+
+func (m ServicerMock) GetTasks(jobName string) ([]swarm.Task, error) {
+	return m.GetTasksMock(jobName)
+}
+
+func (m ServicerMock) RemoveServices(jobName string) error {
+	return m.RemoveServicesMock(jobName)
 }

@@ -30,6 +30,7 @@ type Response struct {
 }
 
 type Execution struct {
+	ServiceId string
 	CreatedAt time.Time
 	Status    swarm.TaskStatus
 }
@@ -51,10 +52,11 @@ var New = func(ip, port, dockerHost string) (*Serve, error) {
 	if err != nil {
 		return &Serve{}, err
 	}
+	cron, _ := cron.New(dockerHost)
 	return &Serve{
 		IP:      ip,
 		Port:    port,
-		Cron:    cron.New(),
+		Cron:    cron,
 		Service: service,
 	}, nil
 }
@@ -101,6 +103,7 @@ func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
 				executions := []Execution{}
 				for _, t := range tasks {
 					execution := Execution{
+						ServiceId: t.ServiceID,
 						CreatedAt: t.CreatedAt,
 						Status:    t.Status,
 					}
@@ -116,31 +119,16 @@ func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
-	status := "OK"
-	message := ""
-	services, err := s.Service.GetServices("")
-	if err != nil {
-		status = "NOK"
-		message = err.Error()
-	}
-	jobs := map[string]cron.JobData{}
-	for _, service := range services {
-		command := ""
-		for _, v := range service.Spec.TaskTemplate.ContainerSpec.Args {
-			if strings.Contains(v, " ") {
-				command = fmt.Sprintf(`%s "%s"`, command, v)
-			} else {
-				command = fmt.Sprintf(`%s %s`, command, v)
-			}
-		}
-		name := service.Spec.Annotations.Labels["com.df.cron.name"]
-		jobs[name] = s.getJob(service)
-	}
 	response := Response{
-		Status:  status,
-		Message: message,
-		Jobs:    jobs,
+		Status:  "OK",
 	}
+
+	jobs, err := s.Cron.GetJobs()
+	if err != nil {
+		response.Status = "NOK"
+		response.Message = err.Error()
+	}
+	response.Jobs =jobs
 	httpWriterSetContentType(w, "application/json")
 	js, _ := json.Marshal(response)
 	w.Write(js)
@@ -173,6 +161,7 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 	w.Write(js)
 }
 
+// TODO: Remove when JobDetailsHandler is refactored to use cron
 func (s *Serve) getJob(service swarm.Service) cron.JobData {
 	command := ""
 	for _, v := range service.Spec.TaskTemplate.ContainerSpec.Args {

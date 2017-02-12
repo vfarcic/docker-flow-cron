@@ -177,32 +177,11 @@ func (s *ServerTestSuite) Test_JobPutHandler_InvokesInternalServerError_WhenAddJ
 // JobGetHandler
 
 func (s *ServerTestSuite) Test_JobGetHandler_ReturnsListOfServices() {
-	defer exec.Command("/bin/sh", "-c", `docker service rm $(docker service ls)`).CombinedOutput()
-	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
-	jobs := map[string]cron.JobData{}
-	for i := 1; i <= 3; i++ {
-		name := fmt.Sprintf("my-job-%d", i)
-		cmd := fmt.Sprintf(
-			`docker service create \
-    -l 'com.df.cron=true' \
-    -l 'com.df.cron.name=%s' \
-    -l 'com.df.cron.schedule=@every 1s' \
-    -l 'com.df.cron.command=docker service create --restart-condition none alpine echo "Hello World!"' \
-    --constraint "node.labels.env != does-not-exist" \
-    --container-label 'container=label' \
-    --restart-condition none \
-    alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8 \
-    echo "Hello world!"`,
-			name,
-		)
-		exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
-		jobs[name] = cron.JobData{
-			Name:     name,
-			Image:    "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8",
-			Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
-			Schedule: "@every 1s",
-		}
+	jobs := map[string]cron.JobData{
+		"my-job-1": cron.JobData{},
+		"my-job-2": cron.JobData{},
 	}
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
 	expected := Response{
 		Status: "OK",
 		Jobs:   jobs,
@@ -218,22 +197,20 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsListOfServices() {
 			return 0, nil
 		},
 	}
+	cMock := CronerMock{
+		GetJobsMock: func() (map[string]cron.JobData, error) {
+			return jobs, nil
+		},
+	}
 
-	service, _ := docker.New("unix:///var/run/docker.sock")
-
-	srv := Serve{Service: service}
+	srv := Serve{Service: s.Service, Cron: cMock}
 	srv.JobGetHandler(rwMock, req)
 
 	s.Equal(expected, actual)
 }
 
-func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetServicesFail() {
+func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetJobsFail() {
 	message := "This is an error"
-	mock := ServicerMock{
-		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
-			return []swarm.Service{}, fmt.Errorf(message)
-		},
-	}
 	actual := Response{}
 	rwMock := ResponseWriterMock{
 		WriteHeaderMock: func(header int) {},
@@ -245,6 +222,11 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetServicesFail() 
 			return 0, nil
 		},
 	}
+	cMock := CronerMock{
+		GetJobsMock: func() (map[string]cron.JobData, error) {
+			return map[string]cron.JobData{}, fmt.Errorf("This is an error")
+		},
+	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
 	expected := Response{
 		Status:  "NOK",
@@ -252,7 +234,7 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetServicesFail() 
 		Jobs:    map[string]cron.JobData{},
 	}
 
-	srv := Serve{Service: mock}
+	srv := Serve{Service: s.Service, Cron: cMock}
 	srv.JobGetHandler(rwMock, req)
 
 	s.Equal(expected, actual)
@@ -326,6 +308,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 	s.Equal(2, len(actual.Executions))
 	s.False(actual.Executions[0].CreatedAt.IsZero())
 	s.NotNil(actual.Executions[0].Status)
+	s.NotNil(actual.Executions[0].ServiceId)
 }
 
 func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetServicesFail() {
@@ -447,6 +430,7 @@ func (m ResponseWriterMock) WriteHeader(header int) {
 type CronerMock struct {
 	AddJobMock func(data cron.JobData) error
 	StopMock   func()
+	GetJobsMock func() (map[string]cron.JobData, error)
 }
 
 func (m CronerMock) AddJob(data cron.JobData) error {
@@ -457,9 +441,14 @@ func (m CronerMock) Stop() {
 	m.StopMock()
 }
 
+func (m CronerMock) GetJobs() (map[string]cron.JobData, error) {
+	return m.GetJobsMock()
+}
+
 type ServicerMock struct {
 	GetServicesMock func(jobName string) ([]swarm.Service, error)
 	GetTasksMock    func(jobName string) ([]swarm.Task, error)
+	RemoveServicesMock func(jobName string) error
 }
 
 func (m ServicerMock) GetServices(jobName string) ([]swarm.Service, error) {
@@ -468,4 +457,8 @@ func (m ServicerMock) GetServices(jobName string) ([]swarm.Service, error) {
 
 func (m ServicerMock) GetTasks(jobName string) ([]swarm.Task, error) {
 	return m.GetTasksMock(jobName)
+}
+
+func (m ServicerMock) RemoveServices(jobName string) error {
+	return m.RemoveServicesMock(jobName)
 }

@@ -111,6 +111,33 @@ func (s *ServiceTestSuite) Test_GetTasks_ReturnsError_WhenServiceListFails() {
 	s.Error(err)
 }
 
+// RemoveServices
+
+func (s *ServiceTestSuite) Test_RemoveServices_RemovesAllServicesRelatedToACronJob() {
+	defer s.removeAllServices()
+	s.createTestService("util-9", "-l com.df.cron.name=my-job -l com.df.cron=true")
+	s.createTestService("util-10", "-l com.df.cron.name=my-job -l com.df.cron=true")
+	s.createTestService("util-11", "-l com.df.cron.name=some-other-job -l com.df.cron=true")
+	services, _ := New("unix:///var/run/docker.sock")
+
+	services.RemoveServices("my-job")
+
+	myJobServices, _ := services.GetServices("my-job")
+	s.Equal(0, len(myJobServices))
+
+	someOtherJobServices, _ := services.GetServices("some-other-job")
+	s.Equal(1, len(someOtherJobServices))
+}
+
+func (s *ServiceTestSuite) Test_RemoveServices_ReturnsAnError_WhenClientFails() {
+	defer s.removeAllServices()
+	services, _ := New("unix:///this/socket/does/not/exist")
+
+	err := services.RemoveServices("my-job")
+
+	s.Error(err)
+}
+
 // Util
 
 func (s *ServiceTestSuite) createTestService(name, args string) {

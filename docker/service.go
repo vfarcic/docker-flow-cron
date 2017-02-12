@@ -14,6 +14,7 @@ const dockerApiVersion = "v1.24"
 type Servicer interface {
 	GetServices(jobName string) ([]swarm.Service, error)
 	GetTasks(jobName string) ([]swarm.Task, error)
+	RemoveServices(jobName string) error
 }
 
 type Service struct {
@@ -51,4 +52,15 @@ func (s *Service) GetTasks(jobName string) ([]swarm.Task, error) {
 		return []swarm.Task{}, err
 	}
 	return tasks, nil
+}
+
+func (s *Service) RemoveServices(jobName string) error {
+	services, err := s.GetServices(jobName)
+	if err != nil {
+		return err
+	}
+	for _, service := range services {
+		s.Client.ServiceRemove(context.Background(), service.Spec.Name)
+	}
+	return nil
 }

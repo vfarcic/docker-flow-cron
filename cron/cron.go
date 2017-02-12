@@ -5,15 +5,21 @@ import (
 	rcron "github.com/robfig/cron"
 	"os/exec"
 	"strings"
+	"../docker"
+	"github.com/docker/docker/api/types/swarm"
 )
+
+const dockerApiVersion = "v1.24"
 
 type Croner interface {
 	AddJob(data JobData) error
 	Stop()
+	GetJobs() (map[string]JobData, error)
 }
 
 type Cron struct {
 	Cron *rcron.Cron
+	Service docker.Servicer
 }
 
 var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) error {
@@ -28,12 +34,14 @@ type JobData struct {
 	Args     []string
 }
 
-var New = func() Croner {
+var New = func(dockerHost string) (Croner, error) {
+	service, err := docker.New(dockerHost)
+	if err != nil {
+		return &Cron{}, err
+	}
 	c := rcron.New()
 	c.Start()
-	return &Cron{
-		Cron: c,
-	}
+	return &Cron{Cron: c, Service: service}, nil
 }
 
 func (c *Cron) AddJob(data JobData) error {
@@ -77,7 +85,6 @@ func (c *Cron) AddJob(data JobData) error {
 		cmdLabel,
 		strings.Trim(cmdSuffix, " "),
 	)
-	println("COMMAND:", cmd)
 	cronCmd := func() {
 		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 		if err != nil { // TODO: Test
@@ -87,6 +94,45 @@ func (c *Cron) AddJob(data JobData) error {
 	return rCronAddFunc(c.Cron, data.Schedule, cronCmd)
 }
 
+func (c *Cron) GetJobs() (map[string]JobData, error) {
+	jobs := map[string]JobData{}
+	services, err := c.Service.GetServices("")
+	if err != nil {
+		return jobs, err
+	}
+	for _, service := range services {
+		command := ""
+		for _, v := range service.Spec.TaskTemplate.ContainerSpec.Args {
+			if strings.Contains(v, " ") {
+				command = fmt.Sprintf(`%s "%s"`, command, v)
+			} else {
+				command = fmt.Sprintf(`%s %s`, command, v)
+			}
+		}
+		name := service.Spec.Annotations.Labels["com.df.cron.name"]
+		jobs[name] = c.getJob(service)
+	}
+	return jobs, nil
+}
+
 func (c *Cron) Stop() {
 	c.Cron.Stop()
+}
+
+func (c *Cron) getJob(service swarm.Service) JobData {
+	command := ""
+	for _, v := range service.Spec.TaskTemplate.ContainerSpec.Args {
+		if strings.Contains(v, " ") {
+			command = fmt.Sprintf(`%s "%s"`, command, v)
+		} else {
+			command = fmt.Sprintf(`%s %s`, command, v)
+		}
+	}
+	name := service.Spec.Annotations.Labels["com.df.cron.name"]
+	return JobData{
+		Name:     name,
+		Image:    service.Spec.TaskTemplate.ContainerSpec.Image,
+		Command:  service.Spec.Annotations.Labels["com.df.cron.command"],
+		Schedule: service.Spec.Annotations.Labels["com.df.cron.schedule"],
+	}
 }
