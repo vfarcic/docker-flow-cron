@@ -15,6 +15,7 @@ type Croner interface {
 	AddJob(data JobData) error
 	Stop()
 	GetJobs() (map[string]JobData, error)
+	RemoveJob(jobName string) error
 }
 
 type Cron struct {
@@ -113,6 +114,17 @@ func (c *Cron) GetJobs() (map[string]JobData, error) {
 		jobs[name] = c.getJob(service)
 	}
 	return jobs, nil
+}
+
+func (c *Cron) RemoveJob(jobName string) error {
+	c.Stop()
+	// TODO: Test error
+	c.Service.RemoveServices(jobName)
+	jobs, _ := c.GetJobs()
+	for _, job := range jobs {
+		c.AddJob(job)
+	}
+	return nil
 }
 
 func (c *Cron) Stop() {

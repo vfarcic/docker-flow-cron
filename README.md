@@ -16,7 +16,7 @@ The project should be able to:
 - [X] retrieve job details
 - [X] retrieve job executions
 - [X] retrieve job execution logs (`docker service logs`)
-- [ ] remove scheduled jobs
+- [X] remove scheduled jobs
 - [ ] update scheduled jobs
 - [ ] be fault tolerant
 - [ ] after cron rescheduling, it does not start jobs that are already running

@@ -66,13 +66,30 @@ func (s *Serve) Execute() error {
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	// TODO: Test routes
 	r := mux.NewRouter().StrictSlash(true)
-	r.HandleFunc("/v1/docker-flow-cron/job", s.JobPutHandler).Methods("PUT")
 	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
+	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobPutHandler).Methods("PUT")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDetailsHandler).Methods("GET")
+	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDeleteHandler).Methods("DELETE")
 	if err := httpListenAndServe(address, r); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *Serve) JobDeleteHandler(w http.ResponseWriter, req *http.Request) {
+	jobName := muxVars(req)["jobName"]
+	response := ResponseDetails{
+		Status:     "OK",
+		Message:    fmt.Sprintf("%s was deleted", jobName),
+	}
+	err := s.Cron.RemoveJob(jobName)
+	if err != nil {
+		response.Status = "NOK"
+		response.Message = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	js, _ := json.Marshal(response)
+	w.Write(js)
 }
 
 func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
@@ -88,17 +105,20 @@ func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		response.Status = "NOK"
 		response.Message = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		index := len(services) - 1
 		if index < 0 {
 			response.Status = "NOK"
 			response.Message = "Could not find the job"
+			w.WriteHeader(http.StatusNotFound)
 		} else {
 			service := services[index]
 			tasks, err := s.Service.GetTasks(jobName)
 			if err != nil {
 				response.Status = "NOK"
 				response.Message = err.Error()
+				w.WriteHeader(http.StatusInternalServerError)
 			} else {
 				executions := []Execution{}
 				for _, t := range tasks {
@@ -127,6 +147,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		response.Status = "NOK"
 		response.Message = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 	response.Jobs =jobs
 	httpWriterSetContentType(w, "application/json")
@@ -135,6 +156,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
+	jobName := muxVars(req)["jobName"]
 	response := ResponseDetails{
 		Status:  "OK",
 	}
@@ -147,6 +169,7 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 		body, _ := ioutil.ReadAll(req.Body)
 		data := cron.JobData{}
 		json.Unmarshal(body, &data)
+		data.Name = jobName
 		response.Job = data
 		if err := s.Cron.AddJob(data); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

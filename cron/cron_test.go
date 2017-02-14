@@ -70,23 +70,7 @@ func (s CronTestSuite) Test_AddJob_CreatesService() {
 
 	s.addJob1s(data)
 
-	counter := 0
-	for {
-		time.Sleep(1 * time.Second)
-		out, _ := exec.Command(
-			"/bin/sh",
-			"-c",
-			`docker service ls -q -f label=com.df.cron=true -f "label=com.df.cron.name=my-job" -f "label=com.df.cron.schedule=@every 1s"`,
-		).CombinedOutput()
-		if len(out) > 0 {
-			break
-		}
-		counter++
-		if counter >= 15 {
-			s.Fail("Service was not created")
-			break
-		}
-	}
+	s.verifyServiceIsCreated()
 }
 
 func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenRestartConditionIsSetToAny() {
@@ -116,7 +100,6 @@ func (s CronTestSuite) Test_AddJob_AddsRestartConditionNone_WhenNotSet() {
 
 	counter := 0
 	for {
-		time.Sleep(1 * time.Second)
 		id, _ := exec.Command("/bin/sh", "-c", `docker service ls -q -f label=com.df.cron=true`).CombinedOutput()
 		idString := strings.Trim(string(id), "\n")
 		if len(id) > 0 {
@@ -125,10 +108,11 @@ func (s CronTestSuite) Test_AddJob_AddsRestartConditionNone_WhenNotSet() {
 			break
 		}
 		counter++
-		if counter >= 15 {
+		if counter >= 100 {
 			s.Fail("Service was not created")
 			break
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 }
@@ -160,7 +144,6 @@ func (s CronTestSuite) Test_AddJob_AddsCommandLabel() {
 
 	counter := 0
 	for {
-		time.Sleep(1 * time.Second)
 		id, _ := exec.Command("/bin/sh", "-c", `docker service ls -q -f label=com.df.cron=true`).CombinedOutput()
 		idString := strings.Trim(string(id), "\n")
 		if len(id) > 0 {
@@ -172,10 +155,11 @@ func (s CronTestSuite) Test_AddJob_AddsCommandLabel() {
 			break
 		}
 		counter++
-		if counter >= 15 {
+		if counter >= 100 {
 			s.Fail("Service was not created")
 			break
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 }
@@ -256,7 +240,120 @@ func (s *CronTestSuite) Test_GetJobs_ReturnsError_WhenGetServicesFail() {
 	s.Error(err)
 }
 
+// RemoveJob
+
+func (s CronTestSuite) Test_RemoveJob_RemovesService() {
+	data := JobData{
+		Name:    "my-job",
+		Image:   "alpine",
+		Command: `echo "Hello Cron!"`,
+		Schedule: "@every 1s",
+	}
+
+	c, _ := New("unix:///var/run/docker.sock")
+	defer func() {
+		c.Stop()
+		time.Sleep(1 * time.Second)
+		s.removeAllServices()
+	}()
+	c.AddJob(data)
+	s.verifyServiceIsCreated()
+
+	c.RemoveJob("my-job")
+
+	counter := 0
+	for {
+		count := s.getServiceCount("my-job")
+		if count == 0 {
+			break
+		}
+		counter++
+		if counter >= 50 {
+			s.Fail("Services were not removed")
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
+	data := JobData{
+		Name:    "my-job",
+		Image:   "alpine",
+		Command: `echo "Hello Cron!"`,
+		Schedule: "@every 1s",
+	}
+
+	c, _ := New("unix:///var/run/docker.sock")
+	defer func() {
+		c.Stop()
+		time.Sleep(1 * time.Second)
+		s.removeAllServices()
+	}()
+	c.AddJob(data)
+	data.Name = "my-other-job"
+	c.AddJob(data)
+	s.verifyServiceIsCreated()
+
+	c.RemoveJob("my-job")
+
+	before := s.getServiceCount("my-other-job")
+	counter := 0
+	for {
+		after := s.getServiceCount("my-other-job")
+		if after > before {
+			break
+		}
+		counter++
+		if counter >= 50 {
+			s.Fail(fmt.Sprintf("Found %d services. The number should be bigger then %d.", after, before))
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+}
+
 // Util
+
+func (s CronTestSuite) getServiceCount(jobName string) int {
+	command := fmt.Sprintf(
+		`docker service ls -q -f label=com.df.cron=true -f "label=com.df.cron.name=%s"`,
+		jobName,
+	)
+	out, _ := exec.Command(
+		"/bin/sh",
+		"-c",
+		command,
+	).CombinedOutput()
+	servicesString := strings.TrimRight(string(out), "\n")
+	if len(servicesString) > 0 {
+		return len(strings.Split(servicesString, "\n"))
+	} else {
+		return 0
+	}
+}
+
+func (s CronTestSuite) verifyServiceIsCreated() {
+	counter := 0
+	for {
+		out, _ := exec.Command(
+			"/bin/sh",
+			"-c",
+			`docker service ls -q -f label=com.df.cron=true -f "label=com.df.cron.name=my-job" -f "label=com.df.cron.schedule=@every 1s"`,
+		).CombinedOutput()
+		servicesString := strings.TrimRight(string(out), "\n")
+		if len(servicesString) > 0 {
+			break
+		}
+		counter++
+		if counter >= 15 {
+			s.Fail("Service was not created")
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
 
 func (s CronTestSuite) addJob1s(d JobData) {
 	c, _ := New("unix:///var/run/docker.sock")

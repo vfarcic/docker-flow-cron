@@ -87,13 +87,18 @@ func (s *ServerTestSuite) Test_Execute_ReturnsError_WhenHTTPListenAndServeFails(
 // JobPutHandler
 
 func (s *ServerTestSuite) Test_JobPutHandler_InvokesCronAddJob() {
+	muxVarsOrig := muxVars
+	defer func() { muxVars = muxVarsOrig }()
+	muxVars = func(r *http.Request) map[string]string {
+		return map[string]string{"jobName": "my-job"}
+	}
 	expectedData := cron.JobData{
-		Name:     "my-job",
 		Image:    "my-image",
 		Schedule: "@yearly",
 	}
 	actualData := cron.JobData{}
 	js, _ := json.Marshal(expectedData)
+	expectedData.Name = "my-job"
 	req, _ := http.NewRequest(
 		"PUT",
 		"/v1/docker-flow-cron/job",
@@ -155,10 +160,10 @@ func (s *ServerTestSuite) Test_JobPutHandler_InvokesInternalServerError_WhenAddJ
 			return fmt.Errorf("This is an error")
 		},
 	}
-	actual := 0
+	actualStatus := 0
 	mock := ResponseWriterMock{
 		WriteHeaderMock: func(header int) {
-			actual = header
+			actualStatus = header
 		},
 		HeaderMock: func() http.Header {
 			return http.Header{}
@@ -171,7 +176,7 @@ func (s *ServerTestSuite) Test_JobPutHandler_InvokesInternalServerError_WhenAddJ
 	srv := Serve{Cron: cMock}
 	srv.JobPutHandler(mock, req)
 
-	s.Equal(500, actual)
+	s.Equal(500, actualStatus)
 }
 
 // JobGetHandler
@@ -212,8 +217,11 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsListOfServices() {
 func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetJobsFail() {
 	message := "This is an error"
 	actual := Response{}
+	actualStatus := 0
 	rwMock := ResponseWriterMock{
-		WriteHeaderMock: func(header int) {},
+		WriteHeaderMock: func(header int) {
+			actualStatus = header
+		},
 		HeaderMock: func() http.Header {
 			return http.Header{}
 		},
@@ -238,6 +246,94 @@ func (s *ServerTestSuite) Test_JobGetHandler_ReturnsError_WhenGetJobsFail() {
 	srv.JobGetHandler(rwMock, req)
 
 	s.Equal(expected, actual)
+	s.Equal(500, actualStatus)
+}
+
+// JobDeleteHandler
+
+func (s *ServerTestSuite) Test_JobDeleteHandler_ReturnsJobDetails() {
+	muxVarsOrig := muxVars
+	defer func() { muxVars = muxVarsOrig }()
+	muxVars = func(r *http.Request) map[string]string {
+		return map[string]string{"jobName": "my-job"}
+	}
+	name := "my-job"
+	req, _ := http.NewRequest(
+		"DELETE",
+		fmt.Sprintf("/v1/docker-flow-cron/job/%s", name),
+		nil,
+	)
+	expected := ResponseDetails{
+		Status:     "OK",
+		Message:    "my-job was deleted",
+	}
+	actual := ResponseDetails{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	actualName := ""
+	cMock := CronerMock{
+		RemoveJobMock: func(jobName string) error {
+			actualName = jobName
+			return nil
+		},
+	}
+
+	srv := Serve{Service: s.Service, Cron: cMock}
+	srv.JobDeleteHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+	s.Equal("my-job", actualName)
+}
+
+func (s *ServerTestSuite) Test_JobDeleteHandler_ReturnsNok_WhenRemoveJobFails() {
+	muxVarsOrig := muxVars
+	defer func() { muxVars = muxVarsOrig }()
+	muxVars = func(r *http.Request) map[string]string {
+		return map[string]string{"jobName": "my-job"}
+	}
+	name := "my-job"
+	req, _ := http.NewRequest(
+		"DELETE",
+		fmt.Sprintf("/v1/docker-flow-cron/job/%s", name),
+		nil,
+	)
+	expected := ResponseDetails{
+		Status:     "NOK",
+		Message:    "This is an error",
+	}
+	actual := ResponseDetails{}
+	actualStatus := 0
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {
+			actualStatus = header
+		},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	cMock := CronerMock{
+		RemoveJobMock: func(jobName string) error {
+			return fmt.Errorf("This is an error")
+		},
+	}
+
+	srv := Serve{Service: s.Service, Cron: cMock}
+	srv.JobDeleteHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+	s.Equal(500, actualStatus)
 }
 
 // JobDetailsHandler
@@ -322,8 +418,11 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetServicesFai
 		},
 	}
 	actual := ResponseDetails{}
+	actualStatus := 0
 	rwMock := ResponseWriterMock{
-		WriteHeaderMock: func(header int) {},
+		WriteHeaderMock: func(header int) {
+			actualStatus = header
+		},
 		HeaderMock: func() http.Header {
 			return http.Header{}
 		},
@@ -344,12 +443,16 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetServicesFai
 	srv.JobDetailsHandler(rwMock, req)
 
 	s.Equal(expected, actual)
+	s.Equal(500, actualStatus)
 }
 
 func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenServiceDoesNotExist() {
 	actual := ResponseDetails{}
+	actualStatus := 0
 	rwMock := ResponseWriterMock{
-		WriteHeaderMock: func(header int) {},
+		WriteHeaderMock: func(header int) {
+			actualStatus = header
+		},
 		HeaderMock: func() http.Header {
 			return http.Header{}
 		},
@@ -370,6 +473,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenServiceDoesNot
 	srv.JobDetailsHandler(rwMock, req)
 
 	s.Equal(expected, actual)
+	s.Equal(404, actualStatus)
 }
 
 func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail() {
@@ -383,8 +487,11 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail()
 		},
 	}
 	actual := ResponseDetails{}
+	actualStatus := 0
 	rwMock := ResponseWriterMock{
-		WriteHeaderMock: func(header int) {},
+		WriteHeaderMock: func(header int) {
+			actualStatus = header
+		},
 		HeaderMock: func() http.Header {
 			return http.Header{}
 		},
@@ -405,6 +512,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail()
 	srv.JobDetailsHandler(rwMock, req)
 
 	s.Equal(expected, actual)
+	s.Equal(500, actualStatus)
 }
 
 // Mock
@@ -431,6 +539,7 @@ type CronerMock struct {
 	AddJobMock func(data cron.JobData) error
 	StopMock   func()
 	GetJobsMock func() (map[string]cron.JobData, error)
+	RemoveJobMock func(jobName string) error
 }
 
 func (m CronerMock) AddJob(data cron.JobData) error {
@@ -443,6 +552,10 @@ func (m CronerMock) Stop() {
 
 func (m CronerMock) GetJobs() (map[string]cron.JobData, error) {
 	return m.GetJobsMock()
+}
+
+func (m CronerMock) RemoveJob(jobName string) error {
+	return m.RemoveJobMock(jobName)
 }
 
 type ServicerMock struct {
