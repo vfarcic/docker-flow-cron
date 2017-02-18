@@ -16,6 +16,7 @@ type Croner interface {
 	Stop()
 	GetJobs() (map[string]JobData, error)
 	RemoveJob(jobName string) error
+	RescheduleJobs() error
 }
 
 type Cron struct {
@@ -41,6 +42,7 @@ var New = func(dockerHost string) (Croner, error) {
 		return &Cron{}, err
 	}
 	c := rcron.New()
+	// TODO: Replace with RescheduleJobs
 	c.Start()
 	return &Cron{Cron: c, Service: service}, nil
 }
@@ -120,10 +122,18 @@ func (c *Cron) RemoveJob(jobName string) error {
 	c.Stop()
 	// TODO: Test error
 	c.Service.RemoveServices(jobName)
+	// TODO: Test error
+	c.RescheduleJobs()
+	return nil
+}
+
+func (c *Cron) RescheduleJobs() error {
+	// TODO: Test error
 	jobs, _ := c.GetJobs()
 	for _, job := range jobs {
 		c.AddJob(job)
 	}
+	c.Cron.Start()
 	return nil
 }
 

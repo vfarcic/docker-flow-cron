@@ -70,7 +70,7 @@ func (s CronTestSuite) Test_AddJob_CreatesService() {
 
 	s.addJob1s(data)
 
-	s.verifyServiceIsCreated()
+	s.verifyServicesAreCreated("my-job", 1)
 }
 
 func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenRestartConditionIsSetToAny() {
@@ -311,7 +311,36 @@ func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
 
+// RescheduleJobs
+
+func (s CronTestSuite) Test_RescheduleJobs_AddsAllJobs() {
+	data := JobData{
+		Name:    "my-job",
+		Image:   "alpine",
+		Command: `echo "Hello Cron!"`,
+		Schedule: "@every 1s",
+	}
+
+	c, _ := New("unix:///var/run/docker.sock")
+	defer func() {
+		c.Stop()
+		time.Sleep(2 * time.Second)
+		s.removeAllServices()
+	}()
+	c.AddJob(data)
+	for {
+		if s.getServiceCount("my-job") > 0 {
+			break
+		}
+	}
+	s.verifyServicesAreCreated("my-job", 1)
+	c.Stop()
+
+	c.RescheduleJobs()
+
+	s.verifyServicesAreCreated("my-job", 3)
 }
 
 // Util
@@ -334,6 +363,23 @@ func (s CronTestSuite) getServiceCount(jobName string) int {
 	}
 }
 
+func (s CronTestSuite) verifyServicesAreCreated(serviceName string, replicas int) {
+	counter := 0
+	for {
+		count := s.getServiceCount(serviceName)
+		if count >= replicas {
+			break
+		}
+		counter++
+		if counter >= 50 {
+			s.Fail("Services were not created")
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TODO: Replace with verifyServicesAreCreated
 func (s CronTestSuite) verifyServiceIsCreated() {
 	counter := 0
 	for {

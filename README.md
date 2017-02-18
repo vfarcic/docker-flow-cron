@@ -17,8 +17,8 @@ The project should be able to:
 - [X] retrieve job executions
 - [X] retrieve job execution logs (`docker service logs`)
 - [X] remove scheduled jobs
-- [ ] update scheduled jobs
 - [ ] be fault tolerant
+- [ ] use a combination of a job and and an index as a service name
 - [ ] after cron rescheduling, it does not start jobs that are already running
 - [ ] send notifications when a job fails
 - [ ] provide dashboard for job monitoring (explore the option to extend Portainer or Grafana)
@@ -28,6 +28,9 @@ The project should be able to:
 - [ ] prune old executions (services)
 - [ ] create a CLI
 - [ ] provide commands that will allow users to filter services with Docker client
+- [ ] update scheduled jobs
+- [ ] prune old services
+- [ ] support stacks
 
 ## Tasks
 

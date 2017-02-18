@@ -540,6 +540,7 @@ type CronerMock struct {
 	StopMock   func()
 	GetJobsMock func() (map[string]cron.JobData, error)
 	RemoveJobMock func(jobName string) error
+	RescheduleJobsMock func() error
 }
 
 func (m CronerMock) AddJob(data cron.JobData) error {
@@ -556,6 +557,10 @@ func (m CronerMock) GetJobs() (map[string]cron.JobData, error) {
 
 func (m CronerMock) RemoveJob(jobName string) error {
 	return m.RemoveJobMock(jobName)
+}
+
+func (m CronerMock) RescheduleJobs() error {
+	return m.RescheduleJobsMock()
 }
 
 type ServicerMock struct {
