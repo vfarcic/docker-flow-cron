@@ -66,6 +66,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 }
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsFilteredServices() {
+	s.removeAllServices()
 	defer s.removeAllServices()
 	s.createTestService("util-3", "-l com.df.cron.name=my-job -l com.df.cron=true")
 	s.createTestService("util-4", "-l com.df.cron.name=my-job -l com.df.cron=true")

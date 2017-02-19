@@ -4,9 +4,10 @@ import (
 	"../docker"
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
-	rcron "github.com/robfig/cron"
+	rcron "gopkg.in/robfig/cron.v2"
 	"os/exec"
 	"strings"
+	"log"
 )
 
 const dockerApiVersion = "v1.24"
@@ -22,9 +23,10 @@ type Croner interface {
 type Cron struct {
 	Cron    *rcron.Cron
 	Service docker.Servicer
+	Jobs    map[string]rcron.EntryID
 }
 
-var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) error {
+var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) (rcron.EntryID, error) {
 	return c.AddFunc(spec, cmd)
 }
 
@@ -43,7 +45,7 @@ var New = func(dockerHost string) (Croner, error) {
 	}
 	c := rcron.New()
 	c.Start()
-	return &Cron{Cron: c, Service: service}, nil
+	return &Cron{Cron: c, Service: service, Jobs: map[string]rcron.EntryID{}}, nil
 }
 
 func (c *Cron) AddJob(data JobData) error {
@@ -93,7 +95,9 @@ func (c *Cron) AddJob(data JobData) error {
 			fmt.Println(err.Error())
 		}
 	}
-	return rCronAddFunc(c.Cron, data.Schedule, cronCmd)
+	entryId, err := rCronAddFunc(c.Cron, data.Schedule, cronCmd)
+	c.Jobs[data.Name] = entryId
+	return err
 }
 
 func (c *Cron) GetJobs() (map[string]JobData, error) {
@@ -118,11 +122,9 @@ func (c *Cron) GetJobs() (map[string]JobData, error) {
 }
 
 func (c *Cron) RemoveJob(jobName string) error {
-	c.Stop()
+	log.Println("Removing job", jobName)
+	c.Cron.Remove(c.Jobs[jobName])
 	if err := c.Service.RemoveServices(jobName); err != nil {
-		return err
-	}
-	if err := c.RescheduleJobs(); err != nil {
 		return err
 	}
 	return nil
@@ -134,6 +136,7 @@ func (c *Cron) RescheduleJobs() error {
 		return err
 	}
 	for _, job := range jobs {
+		log.Println("Rescheduling", job.Name)
 		c.AddJob(job)
 	}
 	c.Cron.Start()

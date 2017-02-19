@@ -3,7 +3,7 @@ package cron
 import (
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
-	rcron "github.com/robfig/cron"
+	rcron "gopkg.in/robfig/cron.v2"
 	"github.com/stretchr/testify/suite"
 	"os/exec"
 	"strings"
@@ -30,6 +30,8 @@ func (s *CronTestSuite) SetupTest() {
 func TestCronUnitTestSuite(t *testing.T) {
 	s := new(CronTestSuite)
 	suite.Run(t, s)
+	time.Sleep(1 * time.Second)
+	s.removeAllServices()
 }
 
 // New
@@ -46,13 +48,14 @@ func (s CronTestSuite) Test_AddJob_InvokesRCronAddFuncWithSpec() {
 	rCronAddFuncOrig := rCronAddFunc
 	defer func() { rCronAddFunc = rCronAddFuncOrig }()
 	actualSpec := ""
-	rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) error {
+	rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) (rcron.EntryID, error) {
 		actualSpec = spec
-		return nil
+		return 0, nil
 	}
 	data := JobData{Image: "my-image", Name: "my-job", Schedule: "@yearly"}
 	c := Cron{
 		Cron: rcron.New(),
+		Jobs: map[string]rcron.EntryID{},
 	}
 
 	c.AddJob(data)
@@ -66,9 +69,12 @@ func (s CronTestSuite) Test_AddJob_CreatesService() {
 		Image:   "alpine",
 		Command: `echo "Hello Cron!"`,
 	}
-	defer s.removeAllServices()
 
-	s.addJob1s(data)
+	c := s.addJob1s(data)
+	defer func() {
+		c.Stop()
+		c.RemoveJob("my-job")
+	}()
 
 	s.verifyServicesAreCreated("my-job", 1)
 }
@@ -95,8 +101,12 @@ func (s CronTestSuite) Test_AddJob_AddsRestartConditionNone_WhenNotSet() {
 		Args:    []string{},
 		Command: `echo "Hello Cron!"`,
 	}
-	s.addJob1s(data)
-	defer s.removeAllServices()
+
+	c := s.addJob1s(data)
+	defer func() {
+		c.Stop()
+		c.RemoveJob("my-job")
+	}()
 
 	counter := 0
 	for {
@@ -139,8 +149,11 @@ func (s CronTestSuite) Test_AddJob_AddsCommandLabel() {
 		Args:    []string{},
 		Command: `echo "Hello Cron!"`,
 	}
-	s.addJob1s(data)
-	defer s.removeAllServices()
+	c := s.addJob1s(data)
+	defer func() {
+		c.Stop()
+		c.RemoveJob("my-job")
+	}()
 
 	counter := 0
 	for {
@@ -195,7 +208,6 @@ func (s CronTestSuite) Test_AddJob_ThrowsAnError_WhenNameIsEmpty() {
 
 func (s CronTestSuite) Test_GetJobs_ReturnsListOfJobs() {
 	expected := map[string]JobData{}
-	defer s.removeAllServices()
 	for i := 1; i <= 3; i++ {
 		name := fmt.Sprintf("my-job-%d", i)
 		cmd := fmt.Sprintf(
@@ -222,6 +234,12 @@ func (s CronTestSuite) Test_GetJobs_ReturnsListOfJobs() {
 
 	c, _ := New("unix:///var/run/docker.sock")
 	actual, _ := c.GetJobs()
+	defer func() {
+		c.Stop()
+		c.RemoveJob("my-job-1")
+		c.RemoveJob("my-job-2")
+		c.RemoveJob("my-job-3")
+	}()
 
 	s.Equal(expected, actual)
 }
@@ -253,8 +271,7 @@ func (s CronTestSuite) Test_RemoveJob_RemovesService() {
 	c, _ := New("unix:///var/run/docker.sock")
 	defer func() {
 		c.Stop()
-		time.Sleep(2 * time.Second)
-		s.removeAllServices()
+		c.RemoveJob("my-job")
 	}()
 	c.AddJob(data)
 	s.verifyServicesAreCreated("my-job", 1)
@@ -287,8 +304,8 @@ func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 	c, _ := New("unix:///var/run/docker.sock")
 	defer func() {
 		c.Stop()
-		time.Sleep(2 * time.Second)
-		s.removeAllServices()
+		c.RemoveJob("my-job")
+		c.RemoveJob("my-other-job")
 	}()
 	c.AddJob(data)
 	data.Name = "my-other-job"
@@ -329,22 +346,6 @@ func (s CronTestSuite) Test_RemoveJob_ReturnsError_WhenRemoveServicesFail() {
 	s.Error(err)
 }
 
-func (s CronTestSuite) Test_RemoveJob_ReturnsError_WhenGetServicesFail() {
-	mock := ServicerMock{
-		RemoveServicesMock: func(jobName string) error {
-			return nil
-		},
-		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
-			return []swarm.Service{}, fmt.Errorf("This is an error")
-		},
-	}
-	c := Cron{Cron: rcron.New(), Service: mock}
-
-	err := c.RemoveJob("my-job")
-
-	s.Error(err)
-}
-
 // RescheduleJobs
 
 func (s CronTestSuite) Test_RescheduleJobs_AddsAllJobs() {
@@ -358,8 +359,7 @@ func (s CronTestSuite) Test_RescheduleJobs_AddsAllJobs() {
 	c, _ := New("unix:///var/run/docker.sock")
 	defer func() {
 		c.Stop()
-		time.Sleep(2 * time.Second)
-		s.removeAllServices()
+		c.RemoveJob("my-job")
 	}()
 	c.AddJob(data)
 	for {
@@ -416,20 +416,19 @@ func (s CronTestSuite) verifyServicesAreCreated(serviceName string, replicas int
 			break
 		}
 		counter++
-		if counter >= 500 {
+		if counter >= 50 {
 			s.Fail("Services were not created")
 			break
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
-func (s CronTestSuite) addJob1s(d JobData) {
+func (s CronTestSuite) addJob1s(d JobData) Croner {
 	c, _ := New("unix:///var/run/docker.sock")
 	d.Schedule = "@every 1s"
 	c.AddJob(d)
-	time.Sleep(1 * time.Second)
-	c.Stop()
+	return c
 }
 
 func (s CronTestSuite) removeAllServices() {

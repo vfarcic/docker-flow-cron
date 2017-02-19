@@ -17,7 +17,7 @@ The project should be able to:
 - [X] retrieve job executions
 - [X] retrieve job execution logs (`docker service logs`)
 - [X] remove scheduled jobs
-- [ ] be fault tolerant
+- [X] be fault tolerant
 - [ ] use a combination of a job and and an index as a service name
 - [ ] after cron rescheduling, it does not start jobs that are already running
 - [ ] send notifications when a job fails
@@ -37,7 +37,6 @@ The project should be able to:
 - [ ] develop PoC
 - [ ] document (use cron.AddJob as the base for the rules)
 - [ ] release
-- [ ] reduce testing time or split into groups (e.g. unit tests, integration tests)
 
 ## Assumptions
 
