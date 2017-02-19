@@ -12,4 +12,5 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	s.Execute()
+	s.Cron.RescheduleJobs()
 }

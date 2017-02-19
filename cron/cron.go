@@ -1,12 +1,12 @@
 package cron
 
 import (
+	"../docker"
 	"fmt"
+	"github.com/docker/docker/api/types/swarm"
 	rcron "github.com/robfig/cron"
 	"os/exec"
 	"strings"
-	"../docker"
-	"github.com/docker/docker/api/types/swarm"
 )
 
 const dockerApiVersion = "v1.24"
@@ -20,7 +20,7 @@ type Croner interface {
 }
 
 type Cron struct {
-	Cron *rcron.Cron
+	Cron    *rcron.Cron
 	Service docker.Servicer
 }
 
@@ -42,7 +42,6 @@ var New = func(dockerHost string) (Croner, error) {
 		return &Cron{}, err
 	}
 	c := rcron.New()
-	// TODO: Replace with RescheduleJobs
 	c.Start()
 	return &Cron{Cron: c, Service: service}, nil
 }
@@ -120,16 +119,20 @@ func (c *Cron) GetJobs() (map[string]JobData, error) {
 
 func (c *Cron) RemoveJob(jobName string) error {
 	c.Stop()
-	// TODO: Test error
-	c.Service.RemoveServices(jobName)
-	// TODO: Test error
-	c.RescheduleJobs()
+	if err := c.Service.RemoveServices(jobName); err != nil {
+		return err
+	}
+	if err := c.RescheduleJobs(); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (c *Cron) RescheduleJobs() error {
-	// TODO: Test error
-	jobs, _ := c.GetJobs()
+	jobs, err := c.GetJobs()
+	if err != nil {
+		return err
+	}
 	for _, job := range jobs {
 		c.AddJob(job)
 	}

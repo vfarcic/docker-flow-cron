@@ -264,8 +264,8 @@ func (s *ServerTestSuite) Test_JobDeleteHandler_ReturnsJobDetails() {
 		nil,
 	)
 	expected := ResponseDetails{
-		Status:     "OK",
-		Message:    "my-job was deleted",
+		Status:  "OK",
+		Message: "my-job was deleted",
 	}
 	actual := ResponseDetails{}
 	rwMock := ResponseWriterMock{
@@ -306,8 +306,8 @@ func (s *ServerTestSuite) Test_JobDeleteHandler_ReturnsNok_WhenRemoveJobFails() 
 		nil,
 	)
 	expected := ResponseDetails{
-		Status:     "NOK",
-		Message:    "This is an error",
+		Status:  "NOK",
+		Message: "This is an error",
 	}
 	actual := ResponseDetails{}
 	actualStatus := 0
@@ -536,10 +536,10 @@ func (m ResponseWriterMock) WriteHeader(header int) {
 }
 
 type CronerMock struct {
-	AddJobMock func(data cron.JobData) error
-	StopMock   func()
-	GetJobsMock func() (map[string]cron.JobData, error)
-	RemoveJobMock func(jobName string) error
+	AddJobMock         func(data cron.JobData) error
+	StopMock           func()
+	GetJobsMock        func() (map[string]cron.JobData, error)
+	RemoveJobMock      func(jobName string) error
 	RescheduleJobsMock func() error
 }
 
@@ -564,8 +564,8 @@ func (m CronerMock) RescheduleJobs() error {
 }
 
 type ServicerMock struct {
-	GetServicesMock func(jobName string) ([]swarm.Service, error)
-	GetTasksMock    func(jobName string) ([]swarm.Task, error)
+	GetServicesMock    func(jobName string) ([]swarm.Service, error)
+	GetTasksMock       func(jobName string) ([]swarm.Task, error)
 	RemoveServicesMock func(jobName string) error
 }
 

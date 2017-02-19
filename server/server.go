@@ -79,8 +79,8 @@ func (s *Serve) Execute() error {
 func (s *Serve) JobDeleteHandler(w http.ResponseWriter, req *http.Request) {
 	jobName := muxVars(req)["jobName"]
 	response := ResponseDetails{
-		Status:     "OK",
-		Message:    fmt.Sprintf("%s was deleted", jobName),
+		Status:  "OK",
+		Message: fmt.Sprintf("%s was deleted", jobName),
 	}
 	err := s.Cron.RemoveJob(jobName)
 	if err != nil {
@@ -140,7 +140,7 @@ func (s *Serve) JobDetailsHandler(w http.ResponseWriter, req *http.Request) {
 
 func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 	response := Response{
-		Status:  "OK",
+		Status: "OK",
 	}
 
 	jobs, err := s.Cron.GetJobs()
@@ -149,7 +149,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 		response.Message = err.Error()
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	response.Jobs =jobs
+	response.Jobs = jobs
 	httpWriterSetContentType(w, "application/json")
 	js, _ := json.Marshal(response)
 	w.Write(js)
@@ -158,7 +158,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 	jobName := muxVars(req)["jobName"]
 	response := ResponseDetails{
-		Status:  "OK",
+		Status: "OK",
 	}
 	if req.Body == nil {
 		w.WriteHeader(http.StatusBadRequest)

@@ -1,19 +1,19 @@
 package cron
 
 import (
+	"fmt"
+	"github.com/docker/docker/api/types/swarm"
 	rcron "github.com/robfig/cron"
 	"github.com/stretchr/testify/suite"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
-	"fmt"
-	"github.com/docker/docker/api/types/swarm"
 )
 
 type CronTestSuite struct {
 	suite.Suite
-	Service        ServicerMock
+	Service ServicerMock
 }
 
 func (s *CronTestSuite) SetupTest() {
@@ -244,20 +244,20 @@ func (s *CronTestSuite) Test_GetJobs_ReturnsError_WhenGetServicesFail() {
 
 func (s CronTestSuite) Test_RemoveJob_RemovesService() {
 	data := JobData{
-		Name:    "my-job",
-		Image:   "alpine",
-		Command: `echo "Hello Cron!"`,
+		Name:     "my-job",
+		Image:    "alpine",
+		Command:  `echo "Hello Cron!"`,
 		Schedule: "@every 1s",
 	}
 
 	c, _ := New("unix:///var/run/docker.sock")
 	defer func() {
 		c.Stop()
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 		s.removeAllServices()
 	}()
 	c.AddJob(data)
-	s.verifyServiceIsCreated()
+	s.verifyServicesAreCreated("my-job", 1)
 
 	c.RemoveJob("my-job")
 
@@ -278,22 +278,22 @@ func (s CronTestSuite) Test_RemoveJob_RemovesService() {
 
 func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 	data := JobData{
-		Name:    "my-job",
-		Image:   "alpine",
-		Command: `echo "Hello Cron!"`,
+		Name:     "my-job",
+		Image:    "alpine",
+		Command:  `echo "Hello Cron!"`,
 		Schedule: "@every 1s",
 	}
 
 	c, _ := New("unix:///var/run/docker.sock")
 	defer func() {
 		c.Stop()
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 		s.removeAllServices()
 	}()
 	c.AddJob(data)
 	data.Name = "my-other-job"
 	c.AddJob(data)
-	s.verifyServiceIsCreated()
+	s.verifyServicesAreCreated("my-job", 1)
 
 	c.RemoveJob("my-job")
 
@@ -313,13 +313,45 @@ func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 	}
 }
 
+func (s CronTestSuite) Test_RemoveJob_ReturnsError_WhenRemoveServicesFail() {
+	mock := ServicerMock{
+		RemoveServicesMock: func(jobName string) error {
+			return fmt.Errorf("This is an error")
+		},
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, nil
+		},
+	}
+	c := Cron{Cron: rcron.New(), Service: mock}
+
+	err := c.RemoveJob("my-job")
+
+	s.Error(err)
+}
+
+func (s CronTestSuite) Test_RemoveJob_ReturnsError_WhenGetServicesFail() {
+	mock := ServicerMock{
+		RemoveServicesMock: func(jobName string) error {
+			return nil
+		},
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, fmt.Errorf("This is an error")
+		},
+	}
+	c := Cron{Cron: rcron.New(), Service: mock}
+
+	err := c.RemoveJob("my-job")
+
+	s.Error(err)
+}
+
 // RescheduleJobs
 
 func (s CronTestSuite) Test_RescheduleJobs_AddsAllJobs() {
 	data := JobData{
-		Name:    "my-job",
-		Image:   "alpine",
-		Command: `echo "Hello Cron!"`,
+		Name:     "my-job",
+		Image:    "alpine",
+		Command:  `echo "Hello Cron!"`,
 		Schedule: "@every 1s",
 	}
 
@@ -341,6 +373,19 @@ func (s CronTestSuite) Test_RescheduleJobs_AddsAllJobs() {
 	c.RescheduleJobs()
 
 	s.verifyServicesAreCreated("my-job", 3)
+}
+
+func (s CronTestSuite) Test_RescheduleJobs_ReturnsError_WhenGetServicesFail() {
+	mock := ServicerMock{
+		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
+			return []swarm.Service{}, fmt.Errorf("This is an error")
+		},
+	}
+	c := Cron{Cron: rcron.New(), Service: mock}
+
+	err := c.RescheduleJobs()
+
+	s.Error(err)
 }
 
 // Util
@@ -371,33 +416,11 @@ func (s CronTestSuite) verifyServicesAreCreated(serviceName string, replicas int
 			break
 		}
 		counter++
-		if counter >= 50 {
+		if counter >= 500 {
 			s.Fail("Services were not created")
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
-	}
-}
-
-// TODO: Replace with verifyServicesAreCreated
-func (s CronTestSuite) verifyServiceIsCreated() {
-	counter := 0
-	for {
-		out, _ := exec.Command(
-			"/bin/sh",
-			"-c",
-			`docker service ls -q -f label=com.df.cron=true -f "label=com.df.cron.name=my-job" -f "label=com.df.cron.schedule=@every 1s"`,
-		).CombinedOutput()
-		servicesString := strings.TrimRight(string(out), "\n")
-		if len(servicesString) > 0 {
-			break
-		}
-		counter++
-		if counter >= 15 {
-			s.Fail("Service was not created")
-			break
-		}
-		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -418,8 +441,8 @@ func (s CronTestSuite) removeAllServices() {
 }
 
 type ServicerMock struct {
-	GetServicesMock func(jobName string) ([]swarm.Service, error)
-	GetTasksMock    func(jobName string) ([]swarm.Task, error)
+	GetServicesMock    func(jobName string) ([]swarm.Service, error)
+	GetTasksMock       func(jobName string) ([]swarm.Task, error)
 	RemoveServicesMock func(jobName string) error
 }
 
