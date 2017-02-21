@@ -1,19 +1,23 @@
-## TODO
-
-* Remove
-
-```bash
-go build -v -o docker-flow-cron && \
-    ./docker-flow-cron
-```
+# Examples of Running Docker Flow Cron In a Swarm Cluster
 
 ## Creating Jobs
 
 ```bash
-docker stack deploy -c stack.yml cron
+curl -o df-cron.yml \
+    https://raw.githubusercontent.com/\
+vfarcic/docker-flow-cron/master/stack.yml
 
-docker stack ps cron
+docker stack deploy -c df-cron.yml df-cron
 
+docker stack ps df-cron
+```
+
+```
+ID            NAME             IMAGE                            NODE  DESIRED STATE  CURRENT STATE          ERROR  PORTS
+auy9ajs8mgyn  dfc-cron_main.1  vfarcic/docker-flow-cron:latest  moby  Running        Running 4 seconds ago
+```
+
+```bash
 curl -XPUT \
     -d '{
     "Image": "alpine",

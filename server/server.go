@@ -62,7 +62,7 @@ var New = func(ip, port, dockerHost string) (*Serve, error) {
 }
 
 func (s *Serve) Execute() error {
-	log.Printf("Starting Web server running on %s:%s\n", s.IP, s.Port)
+	fmt.Printf("Starting Web server running on %s:%s\n", s.IP, s.Port)
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	// TODO: Test routes
 	r := mux.NewRouter().StrictSlash(true)

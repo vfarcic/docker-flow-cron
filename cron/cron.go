@@ -49,6 +49,7 @@ var New = func(dockerHost string) (Croner, error) {
 }
 
 func (c *Cron) AddJob(data JobData) error {
+	fmt.Println("Scheduling", data.Name)
 	if data.Args == nil {
 		data.Args = []string{}
 	}
@@ -92,7 +93,7 @@ func (c *Cron) AddJob(data JobData) error {
 	cronCmd := func() {
 		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 		if err != nil { // TODO: Test
-			fmt.Println(err.Error())
+			fmt.Printf("Could not execute the command:\n%s\n\n%s\n", cmd, err.Error())
 		}
 	}
 	entryId, err := rCronAddFunc(c.Cron, data.Schedule, cronCmd)
@@ -122,7 +123,7 @@ func (c *Cron) GetJobs() (map[string]JobData, error) {
 }
 
 func (c *Cron) RemoveJob(jobName string) error {
-	log.Println("Removing job", jobName)
+	fmt.Println("Removing job", jobName)
 	c.Cron.Remove(c.Jobs[jobName])
 	if err := c.Service.RemoveServices(jobName); err != nil {
 		return err
@@ -131,12 +132,12 @@ func (c *Cron) RemoveJob(jobName string) error {
 }
 
 func (c *Cron) RescheduleJobs() error {
+	fmt.Println("Rescheduling jobs")
 	jobs, err := c.GetJobs()
 	if err != nil {
 		return err
 	}
 	for _, job := range jobs {
-		log.Println("Rescheduling", job.Name)
 		c.AddJob(job)
 	}
 	c.Cron.Start()
