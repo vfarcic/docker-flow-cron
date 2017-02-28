@@ -1,5 +1,7 @@
 # Feedback and Contribution
 
+TODO: Review
+
 The *Docker Flow: Proxy* project welcomes, and depends, on contributions from developers and users in the open source community. Contributions can be made in a number of ways, a few examples are:
 
 * Code patches or new features via pull requests

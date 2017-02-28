@@ -1,5 +1,5 @@
 ```bash
-# TODO: Setup a cluster
+# TODO: Write text
 
 docker container run -it --rm \
     -v /var/run/docker.sock:/var/run/docker.sock \

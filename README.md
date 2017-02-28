@@ -1,5 +1,9 @@
 # Docker Flow Cron
 
+TODO: Move unfinished to issues
+
+TODO: Write an introduction and a reference to [cron.dockerflow.com](cron.dockerflow.com).
+
 This project is in the **design phase**.
 
 ## High Level Design
