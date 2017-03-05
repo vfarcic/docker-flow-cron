@@ -26,7 +26,8 @@ script:
   - docker tag vfarcic/docker-flow-cron-docs vfarcic/docker-flow-cron-docs:${VERSION}
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} docker service update --image vfarcic/docker-flow-cron-docs:${VERSION} cron-docs; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} curl -i cron-docs.yml https://github.com/vfarcic/docker-flow-cron/blob/master/stack-docs.yml; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} TAG=${VERSION} docker stack deploy -c cron-docs.yml cron-docs; fi'
 
 branches:
   only:
