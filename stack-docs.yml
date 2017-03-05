@@ -1,0 +1,23 @@
+version: "3"
+
+services:
+
+  main:
+    image: vfarcic/docker-flow-cron-docs:${TAG:-latest}
+    networks:
+      - proxy
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      labels:
+        - com.df.notify=true
+        - com.df.distribute=true
+        - com.df.servicePath=/
+        - com.df.port=80
+        - com.df.serviceDomain=cron.dockerflow.com
+
+networks:
+  proxy:
+    external: true
