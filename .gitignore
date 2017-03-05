@@ -2,3 +2,5 @@
 /*.iml
 /docker-flow-cron
 /df-cron.yml
+/proxy-key
+/proxy-key.pub

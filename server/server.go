@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/gorilla/mux"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"

@@ -7,7 +7,6 @@ import (
 	rcron "gopkg.in/robfig/cron.v2"
 	"os/exec"
 	"strings"
-	"log"
 )
 
 const dockerApiVersion = "v1.24"

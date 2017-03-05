@@ -8,6 +8,10 @@ sudo: required
 services:
   - docker
 
+before_install:
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then openssl aes-256-cbc -K $encrypted_62b14f38a520_key -iv $encrypted_62b14f38a520_iv -in proxy-key.enc -out proxy-key -d; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then chmod 600 proxy-key; fi'
+
 script:
   - docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go -v /var/run/docker.sock:/var/run/docker.sock vfarcic/docker-flow-cron-test bash -c "go get -d -v -t && go test --cover ./... -p=1 && go build -v -o docker-flow-cron"
   - docker build -t vfarcic/docker-flow-cron .
@@ -17,9 +21,10 @@ script:
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; docker push vfarcic/docker-flow-cron; fi'
   - docker-compose -f docker-compose-test.yml run --rm docs
   - docker build -t vfarcic/docker-flow-proxy-docs -f Dockerfile.docs .
-  - docker tag vfarcic/docker-flow-proxy-docs vfarcic/docker-flow-proxy-docs:${VERSION}
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-proxy-docs:${VERSION}; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-proxy-docs; fi'
+  - docker tag vfarcic/docker-flow-cron-docs vfarcic/docker-flow-cron-docs:${VERSION}
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs:${VERSION}; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} docker service update --image vfarcic/docker-flow-cron-docs:${VERSION} proxy-docs; fi'
 
 branches:
   only:
