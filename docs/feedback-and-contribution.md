@@ -41,7 +41,7 @@ go build -v -o docker-flow-cron && ./docker-flow-cron
 ### Unit Testing
 
 ```bash
-go test ./... -cover -run UnitTest -p=1
+docker-compose -f docker-compose-test.yml run --rm unit
 ```
 
 ### Building

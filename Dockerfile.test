@@ -8,3 +8,12 @@ RUN apt-get update && \
     echo 'deb https://apt.dockerproject.org/repo debian-jessie main' >/etc/apt/sources.list.d/docker.list && \
     apt-get update && \
     apt-get install -y docker-engine
+
+RUN go get github.com/docker/docker/api/types && \
+    go get github.com/docker/docker/api/types/filters && \
+    go get github.com/docker/docker/api/types/swarm && \
+    go get github.com/docker/docker/client && \
+    go get gopkg.in/robfig/cron.v2 && \
+    go get golang.org/x/net/context && \
+    go get github.com/gorilla/mux && \
+    go get github.com/stretchr/testify/suite
