@@ -2,6 +2,8 @@ env:
   global:
     - VERSION=0.${TRAVIS_BUILD_NUMBER}
     - DOCKER_HUB_USER=vfarcic
+    - TAG=0.${TRAVIS_BUILD_NUMBER}
+    - PORT=8081
 
 sudo: required
 
@@ -27,7 +29,7 @@ script:
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} curl -i cron-docs.yml https://github.com/vfarcic/docker-flow-cron/blob/master/stack-docs.yml; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} TAG=${VERSION} docker stack deploy -c cron-docs.yml cron-docs; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then ssh -o "StrictHostKeyChecking no" -i proxy-key root@${SWARM_MANAGER_1_PUBLIC_IP} export TAG=${VERSION} PORT=8081 docker stack deploy -c cron-docs.yml cron-docs; fi'
 
 branches:
   only:
