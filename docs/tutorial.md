@@ -1,15 +1,17 @@
 # Examples of Running Docker Flow Cron In a Swarm Cluster
 
-TODO: Write text
+The examples that follow assume that you already have a Swarm cluster and that you are logged into one of the managers.
 
 ## Creating Jobs
+
+We'll start by downloading a stack that fill deploy the `docker-flow-cron` service.
 
 ```bash
 curl -o cron.yml \
     https://raw.githubusercontent.com/vfarcic/docker-flow-cron/master/stack.yml
-
-cat cron.yml
 ```
+
+The definition of the stack is as follows.
 
 ```
 version: "3"
@@ -27,16 +29,32 @@ services:
         constraints: [node.role == manager]
 ```
 
+As you can see, it is a very simple stack. It contains a single service. It mounts `/var/run/docker.sock` as a volume. The `cron` will use it for communication with Docker Engine. The internal port `8080` will be exposed as `8080` on the host unless the environment variable `PORT` is specified. Finally, we're using a constraint that will limit the `cron` to one of the manager nodes.
+
+Let us deploy the stack.
+
 ```bash
 docker stack deploy -c cron.yml cron
+```
 
+A few moments later, the service will be up and running. We can confirm that with the `stack ps` command.
+
+```bash
 docker stack ps cron
 ```
+
+The output is as follows.
 
 ```
 ID            NAME         IMAGE                            NODE  DESIRED STATE  CURRENT STATE          ERROR  PORTS
 auy9ajs8mgyn  cron_main.1  vfarcic/docker-flow-cron:latest  moby  Running        Running 4 seconds ago
 ```
+
+Now that the service is running, we can schedule the first job.
+
+TODO: Continue
+
+TODO: Add at least two args
 
 ```bash
 curl -XPUT \

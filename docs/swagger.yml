@@ -1,0 +1,68 @@
+swagger: '2.0'
+info:
+  title: Docker Flow Cron API
+  description: TODO
+  version: "TODO"
+host: cron.dockerflow.com
+schemes:
+  - http
+basePath: /v1/docker-flow-cron
+produces:
+  - application/json
+paths:
+  /job/{jobName}:
+    put:
+      summary: Reconfigures the proxy
+      description: |
+        TODO
+      parameters:
+        - name: jobName
+          in: path
+          description: The name of the job.
+          required: true
+          type: string
+        - name: Job
+          in: body
+          description: Job definition
+          required: true
+          schema:
+            $ref: '#/definitions/Job'
+      responses:
+        200:
+          description: An array of products
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Job'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
+definitions:
+  Job:
+    type: object
+    properties:
+      image:
+        type: string
+        description: Docker image
+      command:
+        type: string
+        description: The command that will be executed when a job is created.
+      schedule:
+        type: string
+        description: The schedule that defines the frequency of the job execution. TODO Link to a reference from https://godoc.org/github.com/robfig/cron
+      args:
+        type: array
+        items:
+          type: string
+        description: The list of arguments that can be used with the `docker service create` command. `--restart-condition` cannot be set to `any`. If not specified, it will be set to `none`. `--name` argument is not allowed. Any other argument supported by Docker service is allowed.
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      fields:
+        type: string

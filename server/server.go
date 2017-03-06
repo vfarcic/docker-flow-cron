@@ -68,6 +68,7 @@ func (s *Serve) Execute() error {
 	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobPutHandler).Methods("PUT")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDetailsHandler).Methods("GET")
+	// TODO: Document
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDeleteHandler).Methods("DELETE")
 	if err := httpListenAndServe(address, r); err != nil {
 		return err
@@ -141,7 +142,6 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 	response := Response{
 		Status: "OK",
 	}
-
 	jobs, err := s.Cron.GetJobs()
 	if err != nil {
 		response.Status = "NOK"

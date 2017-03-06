@@ -30,11 +30,11 @@ var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) (rcron.EntryID, 
 }
 
 type JobData struct {
-	Name     string
-	Image    string
-	Command  string
-	Schedule string
-	Args     []string
+	Name     string `json:"name"`
+	Image    string `json:"image"`
+	Command  string `json:"command"`
+	Schedule string `json:"schedule"`
+	Args     []string `json:"args"`
 }
 
 var New = func(dockerHost string) (Croner, error) {
@@ -53,11 +53,12 @@ func (c *Cron) AddJob(data JobData) error {
 		data.Args = []string{}
 	}
 	if len(data.Name) == 0 {
-		return fmt.Errorf("--name is mandatory")
+		return fmt.Errorf("name is mandatory")
 	}
 	if len(data.Image) == 0 {
 		return fmt.Errorf("image is mandatory")
 	}
+//	TODO: Schedule should be mandatory
 	cmdPrefix := "docker service create"
 	hasRestartCondition := false
 	cmdSuffix := ""
