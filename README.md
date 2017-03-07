@@ -1,3 +1,5 @@
+# THIS PROJECT IS IN DESIGN PHASE. DO NOT USE IT (YET)!!!
+
 # Docker Flow Cron
 
 TODO: Write an introduction and a reference to [cron.dockerflow.com](cron.dockerflow.com).
