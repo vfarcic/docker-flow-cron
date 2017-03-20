@@ -3,8 +3,8 @@ package cron
 import (
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
-	rcron "gopkg.in/robfig/cron.v2"
 	"github.com/stretchr/testify/suite"
+	rcron "gopkg.in/robfig/cron.v2"
 	"os/exec"
 	"strings"
 	"testing"

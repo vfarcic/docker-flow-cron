@@ -183,8 +183,8 @@ func (s *ServerTestSuite) Test_JobPutHandler_InvokesInternalServerError_WhenAddJ
 
 func (s *ServerTestSuite) Test_JobGetHandler_ReturnsListOfServices() {
 	jobs := map[string]cron.JobData{
-		"my-job-1": cron.JobData{},
-		"my-job-2": cron.JobData{},
+		"my-job-1": {},
+		"my-job-2": {},
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-cron/job", nil)
 	expected := Response{
@@ -480,7 +480,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsError_WhenGetTasksFail()
 	message := "This is an get tasks error"
 	mock := ServicerMock{
 		GetServicesMock: func(jobName string) ([]swarm.Service, error) {
-			return []swarm.Service{swarm.Service{}}, nil
+			return []swarm.Service{{}}, nil
 		},
 		GetTasksMock: func(jobName string) ([]swarm.Task, error) {
 			return []swarm.Task{}, fmt.Errorf(message)

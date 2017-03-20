@@ -59,9 +59,10 @@ TODO: Add at least two args
 ```bash
 curl -XPUT \
     -d '{
-    "Image": "alpine",
-    "Command": "echo \"hello World\"",
-    "Schedule": "@every 15s"
+    "image": "alpine",
+    "command": "echo \"hello World\"",
+    "schedule": "@every 15s"
+    "args": {"--restart-condition on-failure", "--constraint node.role==manager"}
 }' "http://localhost:8080/v1/docker-flow-cron/job/my-job"
 ```
 
