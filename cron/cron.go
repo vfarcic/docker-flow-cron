@@ -92,17 +92,18 @@ func (c *Cron) AddJob(data JobData) error {
 		cmdLabel,
 		strings.Trim(cmdSuffix, " "),
 	)
+
+	_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+	if err != nil { // TODO: Test
+			fmt.Println("Could not create service")
+	}
+
 	cronCmd := func() {
-		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+		scale := fmt.Sprintf(`docker service scale %s=1`, data.ServiceName)
+		fmt.Println(scale)
+		_, err := exec.Command("/bin/sh", "-c", scale).CombinedOutput()
 		if err != nil { // TODO: Test
-			
-			scale := fmt.Sprintf(`docker service scale %s=1`,data.ServiceName)
-			fmt.Println(scale)
-			_, err := exec.Command("/bin/sh", "-c", scale).CombinedOutput()
-			if err != nil { // TODO: Test
-				fmt.Printf("Could not scale service")
-			}
-			//fmt.Printf("Could not execute the command:\n%s\n\n%s\n", cmd, err.Error())
+			fmt.Println("Could not scale service")
 		}
 	}
 	entryId, err := rCronAddFunc(c.Cron, data.Schedule, cronCmd)
@@ -169,7 +170,7 @@ func (c *Cron) getJob(service swarm.Service) JobData {
 	name := service.Spec.Annotations.Labels["com.df.cron.name"]
 	return JobData{
 		Name:     name,
-		ServiceName: service.Spec.Annotations.Labels["com.df.cron.servicename"],
+		ServiceName: service.Spec.Name,
 		Image:    service.Spec.TaskTemplate.ContainerSpec.Image,
 		Command:  service.Spec.Annotations.Labels["com.df.cron.command"],
 		Schedule: service.Spec.Annotations.Labels["com.df.cron.schedule"],
