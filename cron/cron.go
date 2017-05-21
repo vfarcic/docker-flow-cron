@@ -30,12 +30,12 @@ var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) (rcron.EntryID, 
 }
 
 type JobData struct {
-	Name     string   `json:"name"`
-	ServiceName  string   `json:"servicename"`
-	Image    string   `json:"image"`
-	Command  string   `json:"command"`
-	Schedule string   `json:"schedule"`
-	Args     []string `json:"args"`
+	Name           string   `json:"name"`
+	ServiceName    string   `json:"servicename"`
+	Image          string   `json:"image"`
+	Command        string   `json:"command"`
+	Schedule       string   `json:"schedule"`
+	Args           []string `json:"args"`
 }
 
 var New = func(dockerHost string) (Croner, error) {
@@ -95,7 +95,7 @@ func (c *Cron) AddJob(data JobData) error {
 
 	_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	if err != nil { // TODO: Test
-			fmt.Println("Could not create service")
+	       fmt.Println("Could not create service")
 	}
 
 	cronCmd := func() {
