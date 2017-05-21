@@ -83,12 +83,16 @@ func (c *Cron) AddJob(data JobData) error {
 		cmdPrefix,
 		cmdSuffix,
 	)
+        serviceName := data.Name
+        if data.ServiceName != "" {
+                serviceName = data.ServiceName
+        }
 	cmd := fmt.Sprintf(
 		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s %s %s`,
 		cmdPrefix,
 		data.Name,
 		data.Schedule,
-		data.ServiceName,
+		serviceName,
 		cmdLabel,
 		strings.Trim(cmdSuffix, " "),
 	)
@@ -99,7 +103,7 @@ func (c *Cron) AddJob(data JobData) error {
 	}
 
 	cronCmd := func() {
-		scale := fmt.Sprintf(`docker service scale %s=1`, data.ServiceName)
+		scale := fmt.Sprintf(`docker service scale %s=1`, serviceName)
 		fmt.Println(scale)
 		_, err := exec.Command("/bin/sh", "-c", scale).CombinedOutput()
 		if err != nil { // TODO: Test
