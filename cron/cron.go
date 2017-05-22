@@ -83,10 +83,10 @@ func (c *Cron) AddJob(data JobData) error {
 		cmdPrefix,
 		cmdSuffix,
 	)
-        serviceName := data.Name
-        if data.ServiceName != "" {
-                serviceName = data.ServiceName
-        }
+	serviceName := data.Name
+	if data.ServiceName != "" {
+		serviceName = data.ServiceName
+	}
 	cmd := fmt.Sprintf(
 		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s %s %s`,
 		cmdPrefix,
@@ -107,7 +107,7 @@ func (c *Cron) AddJob(data JobData) error {
 		fmt.Println(scale)
 		_, err := exec.Command("/bin/sh", "-c", scale).CombinedOutput()
 		if err != nil { // TODO: Test
-			fmt.Println("Could not scale service")
+			fmt.Println("Could not execute command: ", scale)
 		}
 	}
 	entryId, err := rCronAddFunc(c.Cron, data.Schedule, cronCmd)
