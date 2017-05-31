@@ -99,7 +99,7 @@ func (c *Cron) AddJob(data JobData) error {
 
 	_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 	if err != nil { // TODO: Test
-	       fmt.Println("Could not create service")
+	       fmt.Println("Could not execute command: ", cmd, err.Error())
 	}
 
 	cronCmd := func() {

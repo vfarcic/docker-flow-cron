@@ -236,6 +236,9 @@ func (s CronTestSuite) Test_GetJobs_ReturnsListOfJobs() {
 	}
 
 	c, _ := New("unix:///var/run/docker.sock")
+
+	c.RemoveJob("my-job")
+
 	actual, _ := c.GetJobs()
 	defer func() {
 		c.Stop()
