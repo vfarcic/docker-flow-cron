@@ -30,11 +30,12 @@ var rCronAddFunc = func(c *rcron.Cron, spec string, cmd func()) (rcron.EntryID, 
 }
 
 type JobData struct {
-	Name     string   `json:"name"`
-	Image    string   `json:"image"`
-	Command  string   `json:"command"`
-	Schedule string   `json:"schedule"`
-	Args     []string `json:"args"`
+	Name           string   `json:"name"`
+	ServiceName    string   `json:"servicename"`
+	Image          string   `json:"image"`
+	Command        string   `json:"command"`
+	Schedule       string   `json:"schedule"`
+	Args           []string `json:"args"`
 }
 
 var New = func(dockerHost string) (Croner, error) {
@@ -82,18 +83,31 @@ func (c *Cron) AddJob(data JobData) error {
 		cmdPrefix,
 		cmdSuffix,
 	)
+	serviceName := data.Name
+	if data.ServiceName != "" {
+		serviceName = data.ServiceName
+	}
 	cmd := fmt.Sprintf(
-		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" %s %s`,
+		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s --replicas 0 %s %s`,
 		cmdPrefix,
 		data.Name,
 		data.Schedule,
+		serviceName,
 		cmdLabel,
 		strings.Trim(cmdSuffix, " "),
 	)
+
+	_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+	if err != nil { // TODO: Test
+	       fmt.Println("Could not execute command: ", cmd, err.Error())
+	}
+
 	cronCmd := func() {
-		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+		scale := fmt.Sprintf(`docker service scale %s=1`, serviceName)
+		fmt.Println(scale)
+		_, err := exec.Command("/bin/sh", "-c", scale).CombinedOutput()
 		if err != nil { // TODO: Test
-			fmt.Printf("Could not execute the command:\n%s\n\n%s\n", cmd, err.Error())
+			fmt.Println("Could not execute command: ", scale)
 		}
 	}
 	entryId, err := rCronAddFunc(c.Cron, data.Schedule, cronCmd)
@@ -160,6 +174,7 @@ func (c *Cron) getJob(service swarm.Service) JobData {
 	name := service.Spec.Annotations.Labels["com.df.cron.name"]
 	return JobData{
 		Name:     name,
+		ServiceName: service.Spec.Name,
 		Image:    service.Spec.TaskTemplate.ContainerSpec.Image,
 		Command:  service.Spec.Annotations.Labels["com.df.cron.command"],
 		Schedule: service.Spec.Annotations.Labels["com.df.cron.schedule"],

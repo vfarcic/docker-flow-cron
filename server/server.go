@@ -196,6 +196,7 @@ func (s *Serve) getJob(service swarm.Service) cron.JobData {
 	name := service.Spec.Annotations.Labels["com.df.cron.name"]
 	return cron.JobData{
 		Name:     name,
+		ServiceName: service.Spec.Name,
 		Image:    service.Spec.TaskTemplate.ContainerSpec.Image,
 		Command:  service.Spec.Annotations.Labels["com.df.cron.command"],
 		Schedule: service.Spec.Annotations.Labels["com.df.cron.schedule"],

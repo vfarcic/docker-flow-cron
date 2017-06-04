@@ -360,11 +360,13 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
     -l 'com.df.cron.command=docker service create --restart-condition none alpine echo "Hello World!"' \
     --constraint "node.labels.env != does-not-exist" \
     --container-label 'container=label' \
+    --name %s \
     --restart-condition none %s \
     echo "Hello world!"`
 	for _, jobName := range []string{"my-job", "my-job", "some-other-job"} {
 		cmd := fmt.Sprintf(
 			cmdf,
+			jobName,
 			jobName,
 			image,
 		)
@@ -376,6 +378,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 	job := cron.JobData{
 		Name:     name,
 		Image:    image,
+		ServiceName: name,
 		Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
 		Schedule: "@every 1s",
 	}
@@ -401,7 +404,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 	srv.JobDetailsHandler(rwMock, req)
 
 	s.Equal(expected.Job, actual.Job)
-	s.Equal(2, len(actual.Executions))
+	s.Equal(1, len(actual.Executions))
 	s.False(actual.Executions[0].CreatedAt.IsZero())
 	s.NotNil(actual.Executions[0].Status)
 	s.NotNil(actual.Executions[0].ServiceId)
