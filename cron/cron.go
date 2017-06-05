@@ -88,7 +88,7 @@ func (c *Cron) AddJob(data JobData) error {
 		serviceName = data.ServiceName
 	}
 	cmd := fmt.Sprintf(
-		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s %s %s`,
+		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s --replicas 0 %s %s`,
 		cmdPrefix,
 		data.Name,
 		data.Schedule,
