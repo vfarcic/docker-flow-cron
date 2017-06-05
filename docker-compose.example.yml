@@ -3,7 +3,7 @@ version: "3"
 services:
 
   cron:
-    image: leo/docker-flow-cron:${TAG:-latest}
+    image: vfarcic/docker-flow-cron:${TAG:-latest}
     networks:
       - proxy
     volumes:
