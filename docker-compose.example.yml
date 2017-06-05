@@ -3,7 +3,7 @@ version: "3"
 services:
 
   cron:
-    image: vfarcic/docker-flow-cron:${TAG:-latest}
+    image: vfarcic/docker-flow-cron:beta
     networks:
       - proxy
     volumes:
@@ -27,7 +27,7 @@ services:
       placement:
         constraints: [node.role == manager]
 
-  job:
+  example-job:
     image: alpine:3.5
     depends_on:
       - swarm-listener
@@ -40,7 +40,7 @@ services:
         condition: none
       labels:
         - com.df.notify=true
-        - com.df.name=cron_job
+        - com.df.name=cronjob
         - com.df.image=alpine
         - com.df.command=echo \"hello World\"
         - com.df.schedule=@every 30s

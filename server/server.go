@@ -67,6 +67,8 @@ func (s *Serve) Execute() error {
 	r := mux.NewRouter().StrictSlash(true)
 	//swarm-listener
 	r.HandleFunc("/v1/docker-flow-cron/job/create", s.JobCreateHandler)
+	r.HandleFunc("/v1/docker-flow-cron/job/remove", s.JobDeleteHandler)
+
 	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobPutHandler).Methods("PUT")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDetailsHandler).Methods("GET")
@@ -78,9 +80,9 @@ func (s *Serve) Execute() error {
 	return nil
 }
 func (s *Serve) JobCreateHandler(w http.ResponseWriter, req *http.Request) {
-  data := cron.JobData{}
-  data.Name = req.URL.Query().Get("name")
-	data.ServiceName = req.URL.Query().Get("name")
+	data := cron.JobData{}
+	data.Name = req.URL.Query().Get("name")
+	data.ServiceName = req.URL.Query().Get("serviceName")
 	data.Image = req.URL.Query().Get("image")
 	data.Command = req.URL.Query().Get("command")
 	data.Schedule = req.URL.Query().Get("schedule")
@@ -103,7 +105,11 @@ func (s *Serve) JobCreateHandler(w http.ResponseWriter, req *http.Request) {
 
 }
 func (s *Serve) JobDeleteHandler(w http.ResponseWriter, req *http.Request) {
-	jobName := muxVars(req)["jobName"]
+	jobName := req.URL.Query().Get("serviceName")
+	if muxVars(req)["jobName"] != "" {
+		jobName = muxVars(req)["jobName"]
+	} 
+
 	response := ResponseDetails{
 		Status:  "OK",
 		Message: fmt.Sprintf("%s was deleted", jobName),
