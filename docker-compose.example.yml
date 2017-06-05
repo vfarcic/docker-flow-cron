@@ -26,6 +26,24 @@ services:
     deploy:
       placement:
         constraints: [node.role == manager]
+
+  job:
+    image: alpine:3.5
+    depends_on:
+      - swarm-listener
+      - cron
+    networks:
+      - proxy
+    deploy:
+      replicas: 0
+      restart_policy:
+        condition: none
+      labels:
+        - com.df.notify=true
+        - com.df.name=cron_job
+        - com.df.image=alpine
+        - com.df.command=echo \"hello World\"
+        - com.df.schedule=@every 30s
 networks:
   proxy:
     external: true
