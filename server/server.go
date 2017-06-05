@@ -66,7 +66,7 @@ func (s *Serve) Execute() error {
 	// TODO: Test routes
 	r := mux.NewRouter().StrictSlash(true)
 	//swarm-listener
-	r.HandleFunc("/v1/docker-flow-cron/job/create", s.JobCreateHandler)
+	r.HandleFunc("/v1/docker-flow-cron/job/create", s.JobPutHandler)
 	r.HandleFunc("/v1/docker-flow-cron/job/remove", s.JobDeleteHandler)
 
 	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
@@ -79,31 +79,7 @@ func (s *Serve) Execute() error {
 	}
 	return nil
 }
-func (s *Serve) JobCreateHandler(w http.ResponseWriter, req *http.Request) {
-	data := cron.JobData{}
-	data.Name = req.URL.Query().Get("name")
-	data.ServiceName = req.URL.Query().Get("serviceName")
-	data.Image = req.URL.Query().Get("image")
-	data.Command = req.URL.Query().Get("command")
-	data.Schedule = req.URL.Query().Get("schedule")
-	
-	response := ResponseDetails{
-		Status: "OK",
-	}
 
-	if err := s.Cron.AddJob(data); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		response.Status = "NOK"
-		response.Message = err.Error()
-	} else {
-		response.Message = fmt.Sprintf("Job %s has been scheduled", data.Name)
-	}
-
-	httpWriterSetContentType(w, "application/json")
-	js, _ := json.Marshal(response)
-	w.Write(js)
-
-}
 func (s *Serve) JobDeleteHandler(w http.ResponseWriter, req *http.Request) {
 	jobName := req.URL.Query().Get("serviceName")
 	if muxVars(req)["jobName"] != "" {
@@ -187,7 +163,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
-	jobName := muxVars(req)["jobName"]
+
 	response := ResponseDetails{
 		Status: "OK",
 	}
@@ -199,8 +175,18 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 		defer func() { req.Body.Close() }()
 		body, _ := ioutil.ReadAll(req.Body)
 		data := cron.JobData{}
-		json.Unmarshal(body, &data)
-		data.Name = jobName
+
+		if req.Method == "GET" {
+			data.Name = req.URL.Query().Get("name")
+			data.ServiceName = req.URL.Query().Get("serviceName")
+			data.Image = req.URL.Query().Get("image")
+			data.Command = req.URL.Query().Get("command")
+			data.Schedule = req.URL.Query().Get("schedule")
+		} else {
+			jobName := muxVars(req)["jobName"]
+			json.Unmarshal(body, &data)
+			data.Name = jobName
+		}
 		response.Job = data
 		if err := s.Cron.AddJob(data); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
