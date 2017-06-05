@@ -78,9 +78,8 @@ func (s *Serve) Execute() error {
 	return nil
 }
 func (s *Serve) JobCreateHandler(w http.ResponseWriter, req *http.Request) {
-
-    data := cron.JobData{}
-    data.Name = req.URL.Query().Get("name")
+  data := cron.JobData{}
+  data.Name = req.URL.Query().Get("name")
 	data.ServiceName = req.URL.Query().Get("name")
 	data.Image = req.URL.Query().Get("image")
 	data.Command = req.URL.Query().Get("command")
