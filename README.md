@@ -84,17 +84,19 @@ The following Docker Service args ```[OPTIONS]``` should be used for scheduled D
 
 The following Docker Service labels ```[OPTIONS]``` needs to be used for scheduled Docker Services:
 
-|label           |Description                                                        |Mandatory|Example   |
-|----------------|-------------------------------------------------------------------|---------|----------|
-|cron            |Enable scheduling                                                  |yes      |true      |
-|image           |Docker image.                                                      |yes      |alpine    |
-|name            |Cronjob name.                                                      |yes      |my-cronjob|
-|schedule        |The schedule that defines the frequency of the job execution. Check the [scheduling section](#scheduling) for more info.|yes|@every 15s|
-|command         |The command that is scheduled, only used for Docker Flow Cron registration. Use the same command you set for your docker service to run.|No   |echo Hello World|
+|label           |Description                                                        |Prefix|Mandatory|Example   |
+|----------------|-------------------------------------------------------------------|------|---------|----------|
+|cron            |Enable scheduling                                                  |com.df|yes      |true      |
+|image           |Docker image.                                                      |com.df.cron|yes      |alpine    |
+|name            |Cronjob name.                                                      |com.df.cron|yes      |my-cronjob|
+|schedule        |The schedule that defines the frequency of the job execution. Check the [scheduling section](#scheduling) for more info.|com.df.cron|yes|@every 15s|
+|command         |The command that is scheduled, only used for Docker Flow Cron registration. Use the same command you set for your docker service to run.|com.df.cron|No   |echo Hello World|
 
-All labels needs to be prefixed with ```com.df.```
-Example: Setting the cron label is done by specifying:
-```--labels "com.df.cron=true"```
+**All labels needs to be prefixed**
+
+> Examples:
+- ```--labels "com.df.cron=true"```
+- ```--labels "com.df.cron.name=my-job"```
 
 
 https://docs.docker.com/engine/reference/commandline/service_create/
@@ -195,7 +197,7 @@ docker service create --name cronjob \
 ```
 
 ## Scheduling
-Docker Flow Cron uses the library [robfig/cron](https://godoc.org/github.com/robfig/cron) to provide a simple cron syntax.
+Docker Flow Cron uses the library [robfig/cron](https://godoc.org/github.com/robfig/cron) to provide a simple cron syntax for scheduling.
 
 > Examples
 ```
