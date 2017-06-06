@@ -177,16 +177,19 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 		data := cron.JobData{}
 
 		if req.Method == "GET" {
-			data.Name = req.URL.Query().Get("name")
-			data.ServiceName = req.URL.Query().Get("serviceName")
-			data.Image = req.URL.Query().Get("image")
-			data.Command = req.URL.Query().Get("command")
-			data.Schedule = req.URL.Query().Get("schedule")
+			data.Name = req.URL.Query().Get("cron.name")
+			data.ServiceName = req.URL.Query().Get("cron.serviceName")
+			data.Image = req.URL.Query().Get("cron.image")
+			data.Command = req.URL.Query().Get("cron.command")
+			data.Schedule = req.URL.Query().Get("cron.schedule")
+			data.Created = true
 		} else {
 			jobName := muxVars(req)["jobName"]
 			json.Unmarshal(body, &data)
 			data.Name = jobName
+			data.Created = false
 		}
+
 		response.Job = data
 		if err := s.Cron.AddJob(data); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

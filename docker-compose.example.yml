@@ -5,7 +5,7 @@ services:
   cron:
     image: vfarcic/docker-flow-cron:beta
     networks:
-      - proxy
+      - cron
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -17,7 +17,7 @@ services:
   swarm-listener:
     image: vfarcic/docker-flow-swarm-listener
     networks:
-      - proxy
+      - cron
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -27,23 +27,25 @@ services:
       placement:
         constraints: [node.role == manager]
 
-  example-job:
-    image: alpine:3.5
+  cronjob:
+    image: alpine
+    command: echo hello world
     depends_on:
       - swarm-listener
       - cron
     networks:
-      - proxy
+      - cron
     deploy:
       replicas: 0
       restart_policy:
         condition: none
       labels:
         - com.df.notify=true
-        - com.df.name=cronjob
-        - com.df.image=alpine
-        - com.df.command=echo \"hello World\"
-        - com.df.schedule=@every 30s
+        - com.df.cron=true
+        - com.df.cron.name=cron_cronjob
+        - com.df.cron.image=alpine
+        - com.df.cron.command=echo hello world
+        - com.df.cron.schedule=@every 10s
 networks:
-  proxy:
+  cron:
     external: true
