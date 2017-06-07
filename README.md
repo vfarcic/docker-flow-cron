@@ -10,16 +10,15 @@ Please visit the **[project documentation](http://cron.dockerflow.com)** for mor
 
 There is currently two different ways of using Docker Flow Cron
 
-- Using the [Docker Flow Cron API](#docker-flow-cron) to manage (add, list, delete) cron-like jobs
+- Using the [Docker Flow Cron API](#docker-flow-cron-api) directly to manage (add, list, delete) scheduled jobs
 
 - Using the [*Docker Flow Swarm Listener*](#docker-flow-swarm-listener-support) support to manage jobs by creating/deleting regular Docker Services.
 
 
-## Docker Flow Cron
+## Docker Flow Cron API
 #### Put Job
 
 > Adds a job to docker-flow-cron
-
 
 The following body parameters can be used to send a *create job* `PUT` request to *Docker Flow Cron*. They should be added to the base address **[CRON_IP]:[CRON_PORT]/v1/docker-flow-cron/job/[jobName]**.
 
@@ -55,7 +54,7 @@ The following `DELETE` request **[CRON_IP]:[CRON_PORT]/v1/docker-flow-cron/[jobN
 
 ## *Docker Flow Swarm Listener* support
 
-Using the *Docker Flow Swarm Listener* support, Docker Services can schedule cron-like jobs.
+Using the *Docker Flow Swarm Listener* support, Docker Services can schedule jobs.
 Docker Flow Swarm Listener listens to Docker Swarm events and sends requests to Docker Flow Cron when changes occurs, 
 every time a service is created or deleted Docker Flow Cron gets notified and manages job scheduling.
 
@@ -99,10 +98,7 @@ The following Docker Service labels ```[OPTIONS]``` needs to be used for schedul
 - ```--labels "com.df.cron.name=my-job"```
 
 
-https://docs.docker.com/engine/reference/commandline/service_create/
-
-
-## Setup 
+## Tutorials 
 
 #### Docker Flow Cron using Docker Stacks
 
@@ -180,7 +176,7 @@ docker service create --name cron \
 Now that the cron stack is up and running we can add our first scheduled Docker Service.
 This example will run ```echo "Hello World"``` every 10 seconds using an Alpine image.
 
-> Example cron-like job using docker services
+> Example: Scheduled job using Docker Services
 
 ```
 docker service create --name cronjob \
