@@ -36,6 +36,7 @@ type JobData struct {
 	Command        string   `json:"command"`
 	Schedule       string   `json:"schedule"`
 	Args           []string `json:"args"`
+	Created        bool     `json:"created`
 }
 
 var New = func(dockerHost string) (Croner, error) {
@@ -59,47 +60,55 @@ func (c *Cron) AddJob(data JobData) error {
 	if len(data.Image) == 0 {
 		return fmt.Errorf("image is mandatory")
 	}
-	//	TODO: Schedule should be mandatory
-	cmdPrefix := "docker service create"
-	hasRestartCondition := false
-	cmdSuffix := ""
-	for _, v := range data.Args {
-		if strings.HasPrefix(v, "--restart-condition") {
-			if strings.Contains(v, "any") {
-				return fmt.Errorf("--restart-condition cannot be set to any")
-			}
-			hasRestartCondition = true
-		} else if strings.HasPrefix(v, "--name") {
-			return fmt.Errorf("--name argument is not allowed")
-		}
-		cmdSuffix = fmt.Sprintf("%s %s", cmdSuffix, v)
-	}
-	if !hasRestartCondition {
-		cmdSuffix = fmt.Sprintf("%s --restart-condition none", cmdSuffix)
-	}
-	cmdSuffix = fmt.Sprintf("%s %s %s", cmdSuffix, data.Image, data.Command)
-	cmdLabel := fmt.Sprintf(
-		`-l 'com.df.cron.command=%s%s'`,
-		cmdPrefix,
-		cmdSuffix,
-	)
+	/*if len(data.Schedule) == 0 {
+		return fmt.Errorf("schedule is mandatory")
+	}*/
+
 	serviceName := data.Name
 	if data.ServiceName != "" {
 		serviceName = data.ServiceName
 	}
-	cmd := fmt.Sprintf(
-		`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s --replicas 0 %s %s`,
-		cmdPrefix,
-		data.Name,
-		data.Schedule,
-		serviceName,
-		cmdLabel,
-		strings.Trim(cmdSuffix, " "),
-	)
 
-	_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
-	if err != nil { // TODO: Test
-	       fmt.Println("Could not execute command: ", cmd, err.Error())
+	if !data.Created{
+		cmdPrefix := "docker service create"
+		hasRestartCondition := false
+		cmdSuffix := ""
+		for _, v := range data.Args {
+			if strings.HasPrefix(v, "--restart-condition") {
+				if strings.Contains(v, "any") {
+					return fmt.Errorf("--restart-condition cannot be set to any")
+				}
+				hasRestartCondition = true
+			} else if strings.HasPrefix(v, "--name") {
+				return fmt.Errorf("--name argument is not allowed")
+			}
+			cmdSuffix = fmt.Sprintf("%s %s", cmdSuffix, v)
+		}
+		if !hasRestartCondition {
+			cmdSuffix = fmt.Sprintf("%s --restart-condition none", cmdSuffix)
+		}
+		cmdSuffix = fmt.Sprintf("%s %s %s", cmdSuffix, data.Image, data.Command)
+		cmdLabel := fmt.Sprintf(
+			`-l 'com.df.cron.command=%s%s'`,
+			cmdPrefix,
+			cmdSuffix,
+		)
+		cmd := fmt.Sprintf(
+			`%s -l "com.df.cron=true" -l "com.df.cron.name=%s" -l "com.df.cron.schedule=%s" --name %s --replicas 0 %s %s`,
+			cmdPrefix,
+			data.Name,
+			data.Schedule,
+			serviceName,
+			cmdLabel,
+			strings.Trim(cmdSuffix, " "),
+		)
+
+		fmt.Println("Executing command:", cmd)
+
+		_, err := exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
+		if err != nil { // TODO: Test
+		       fmt.Println("Could not execute command: ", cmd, err.Error())
+		}
 	}
 
 	cronCmd := func() {

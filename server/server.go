@@ -65,6 +65,10 @@ func (s *Serve) Execute() error {
 	address := fmt.Sprintf("%s:%s", s.IP, s.Port)
 	// TODO: Test routes
 	r := mux.NewRouter().StrictSlash(true)
+	//swarm-listener
+	r.HandleFunc("/v1/docker-flow-cron/job/create", s.JobPutHandler).Methods("GET")
+	r.HandleFunc("/v1/docker-flow-cron/job/remove", s.JobDeleteHandler).Methods("GET")
+
 	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobPutHandler).Methods("PUT")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobDetailsHandler).Methods("GET")
@@ -77,7 +81,11 @@ func (s *Serve) Execute() error {
 }
 
 func (s *Serve) JobDeleteHandler(w http.ResponseWriter, req *http.Request) {
-	jobName := muxVars(req)["jobName"]
+	jobName := req.URL.Query().Get("serviceName")
+	if muxVars(req)["jobName"] != "" {
+		jobName = muxVars(req)["jobName"]
+	} 
+
 	response := ResponseDetails{
 		Status:  "OK",
 		Message: fmt.Sprintf("%s was deleted", jobName),
@@ -155,7 +163,7 @@ func (s *Serve) JobGetHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
-	jobName := muxVars(req)["jobName"]
+
 	response := ResponseDetails{
 		Status: "OK",
 	}
@@ -167,8 +175,21 @@ func (s *Serve) JobPutHandler(w http.ResponseWriter, req *http.Request) {
 		defer func() { req.Body.Close() }()
 		body, _ := ioutil.ReadAll(req.Body)
 		data := cron.JobData{}
-		json.Unmarshal(body, &data)
-		data.Name = jobName
+
+		if req.Method == "GET" {
+			data.Name = req.URL.Query().Get("cron.name")
+			data.ServiceName = req.URL.Query().Get("cron.serviceName")
+			data.Image = req.URL.Query().Get("cron.image")
+			data.Command = req.URL.Query().Get("cron.command")
+			data.Schedule = req.URL.Query().Get("cron.schedule")
+			data.Created = true
+		} else {
+			jobName := muxVars(req)["jobName"]
+			json.Unmarshal(body, &data)
+			data.Name = jobName
+			data.Created = false
+		}
+
 		response.Job = data
 		if err := s.Cron.AddJob(data); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
