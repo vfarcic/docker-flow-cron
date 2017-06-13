@@ -116,7 +116,7 @@ version: "3"
 
 services:
   cron:
-    image: vfarcic/docker-flow-cron:beta
+    image: vfarcic/docker-flow-cron
     networks:
       - cron
     volumes:
