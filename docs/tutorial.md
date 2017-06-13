@@ -89,20 +89,7 @@ docker service ls
 
 ```
 ID            NAME            MODE        REPLICAS  IMAGE
-7lfroifdmw00  thirsty_bartik  replicated  0/1       alpine:latest
-vp1bcimbwsj5  cron_main       replicated  1/1       vfarcic/docker-flow-cron:latest
-```
-
-```bash
-# Wait for 15 seconds
-
-docker service ls
-```
-
-```
-ID            NAME            MODE        REPLICAS  IMAGE
-7lfroifdmw00  thirsty_bartik  replicated  0/1       alpine:latest
-lz0ehsvy3fiu  pensive_liskov  replicated  0/1       alpine:latest
+7lfroifdmw00  my-job  replicated  0/1       alpine:latest
 vp1bcimbwsj5  cron_main       replicated  1/1       vfarcic/docker-flow-cron:latest
 ```
 

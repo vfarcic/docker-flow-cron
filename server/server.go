@@ -66,8 +66,8 @@ func (s *Serve) Execute() error {
 	// TODO: Test routes
 	r := mux.NewRouter().StrictSlash(true)
 	//swarm-listener
-	r.HandleFunc("/v1/docker-flow-cron/job/create", s.JobPutHandler)
-	r.HandleFunc("/v1/docker-flow-cron/job/remove", s.JobDeleteHandler)
+	r.HandleFunc("/v1/docker-flow-cron/job/create", s.JobPutHandler).Methods("GET")
+	r.HandleFunc("/v1/docker-flow-cron/job/remove", s.JobDeleteHandler).Methods("GET")
 
 	r.HandleFunc("/v1/docker-flow-cron/job", s.JobGetHandler).Methods("GET")
 	r.HandleFunc("/v1/docker-flow-cron/job/{jobName}", s.JobPutHandler).Methods("PUT")
