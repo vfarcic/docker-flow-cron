@@ -100,7 +100,7 @@ The following Docker Service labels ```[OPTIONS]``` needs to be used for schedul
 - ```--labels "com.df.cron.name=my-job"```
 
 
-## Tutorials 
+## Tutorial
 
 #### Docker Flow Cron using Docker Stacks
 
@@ -192,6 +192,25 @@ docker service create --name cronjob \
     -l "com.df.cron.schedule=@every 10s" \
     alpine \
     echo Hello world
+```
+
+The example below is a more realistic use case for *Docker Flow Cron*.
+It will remove unusued docker data by running ```docker system prune``` every day.
+
+> Example: Scheduling a docker command to run on the host
+```
+docker service create --name docker_cleanup \
+    --network cron --replicas 0 \
+    --restart-condition=none \
+    --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
+    -l "com.df.notify=true" \
+    -l "com.df.cron=true" \
+    -l "com.df.cron.name=docker_cleanup" \
+    -l "com.df.cron.image=docker" \
+    -l "com.df.cron.command=docker system prune -f" \
+    -l "com.df.cron.schedule=@daily" \
+    docker \
+    docker system prune -f
 ```
 
 ## Scheduling
