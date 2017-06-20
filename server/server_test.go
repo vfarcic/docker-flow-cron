@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"bytes"
 	"time"
 )
 
@@ -84,7 +85,7 @@ func (s *ServerTestSuite) Test_Execute_ReturnsError_WhenHTTPListenAndServeFails(
 	s.Error(actual)
 }
 
-// JobPutHandler
+// JobPutHandler (PUT)
 
 func (s *ServerTestSuite) Test_JobPutHandler_InvokesCronAddJob() {
 	muxVarsOrig := muxVars
@@ -116,6 +117,51 @@ func (s *ServerTestSuite) Test_JobPutHandler_InvokesCronAddJob() {
 
 	s.Equal(expectedData, actualData)
 }
+
+// JobPutHandler (GET)
+
+func (s *ServerTestSuite) Test_JobPutHandler_GetRequest_ReturnsJobDetails() {
+	var body string = `{}`
+	req, _ := http.NewRequest(
+		"GET",
+		"/v1/docker-flow-cron/job/create?cron=true&cron.command=echo+hello+world&cron.image=alpine&cron.name=my-job&cron.schedule=%40every+10s",
+		bytes.NewBufferString(body),
+	)
+	job := cron.JobData{
+		Name:        "my-job",
+		Image:       "alpine",
+		Command:     "echo hello world",
+		Schedule:    "@every 10s",
+		Created:     true,
+	}
+
+	expected := ResponseDetails{
+		Status:  "OK",
+		Message: "Job my-job has been scheduled",
+		Job: job,
+	}
+	actual := ResponseDetails{}
+	rwMock := ResponseWriterMock{
+		WriteHeaderMock: func(header int) {},
+		HeaderMock: func() http.Header {
+			return http.Header{}
+		},
+		WriteMock: func(content []byte) (int, error) {
+			json.Unmarshal(content, &actual)
+			return 0, nil
+		},
+	}
+	cMock := CronerMock{
+		AddJobMock: func(data cron.JobData) error {
+			return nil
+		},
+	}
+	srv := Serve{Service: s.Service, Cron: cMock}
+	srv.JobPutHandler(rwMock, req)
+
+	s.Equal(expected, actual)
+}
+
 
 func (s *ServerTestSuite) Test_JobPutHandler_ReturnsBadRequestWhenBodyIsNil() {
 	req, _ := http.NewRequest("PUT", "/v1/docker-flow-cron/job", nil)
