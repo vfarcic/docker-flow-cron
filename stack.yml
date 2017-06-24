@@ -2,12 +2,37 @@ version: "3"
 
 services:
 
-  main:
-    image: vfarcic/docker-flow-cron:${TAG:-latest}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - ${PORT:-8080}:8080
+#  main:
+#    image: vfarcic/docker-flow-cron:${TAG:-latest}
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#    ports:
+#      - ${PORT:-8080}:8080
+#    deploy:
+#      placement:
+#        constraints: [node.role == manager]
+
+  docs:
+    image: vfarcic/docker-flow-cron-docs:${TAG:-latest}
+    networks:
+      - proxy
     deploy:
-      placement:
-        constraints: [node.role == manager]
+      labels:
+        - com.df.distribute=true
+        - com.df.notify=true
+        - com.df.port=80
+        - com.df.serviceDomain=cron.dockerflow.com
+        - com.df.servicePath=/
+        - com.df.alertName=memlimit
+        - com.df.alertIf=@service_mem_limit:0.8
+        - com.df.alertFor=30s
+      replicas: 2
+      resources:
+        reservations:
+          memory: 5M
+        limits:
+          memory: 10M
+
+networks:
+  proxy:
+    external: true

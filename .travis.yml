@@ -24,7 +24,7 @@ script:
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron; fi'
   - docker-compose -f docker-compose-test.yml run --rm docs
-  - docker build -t vfarcic/docker-flow-cron-docs -f Dockerfile.test .
+  - docker build -t vfarcic/docker-flow-cron-docs -f Dockerfile.docs .
   - docker tag vfarcic/docker-flow-cron-docs vfarcic/docker-flow-cron-docs:${VERSION}
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-cron-docs; fi'
