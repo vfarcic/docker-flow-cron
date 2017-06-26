@@ -88,3 +88,36 @@ The following Docker Service labels ```[OPTIONS]``` needs to be used for schedul
 > Examples:
 - ```--labels "com.df.cron=true"```
 - ```--labels "com.df.cron.name=my-job"```
+
+
+## Scheduling
+Docker Flow Cron uses the library [robfig/cron](https://godoc.org/github.com/robfig/cron) to provide a simple cron syntax for scheduling.
+
+> Examples
+```
+0 30 * * * *        Every hour on the half hour
+@hourly             Every hour
+@every 1h30m        Every hour thirty
+```
+
+#### Predefined schedules
+You may use one of several pre-defined schedules in place of a cron expression.
+```
+Entry                  | Description                                | Equivalent To
+-----                  | -----------                                | -------------
+@yearly (or @annually) | Run once a year, midnight, Jan. 1st        | 0 0 0 1 1 *
+@monthly               | Run once a month, midnight, first of month | 0 0 0 1 * *
+@weekly                | Run once a week, midnight on Sunday        | 0 0 0 * * 0
+@daily (or @midnight)  | Run once a day, midnight                   | 0 0 0 * * *
+@hourly                | Run once an hour, beginning of hour        | 0 0 * * * *
+```
+
+#### Intervals 
+You may also schedule a job to execute at fixed intervals
+
+```
+@every <duration>
+@every 2h30m15s
+```
+
+Check the library [documentation](https://godoc.org/github.com/robfig/cron) for more information.

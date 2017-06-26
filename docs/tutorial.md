@@ -350,3 +350,115 @@ docker service ls
 ID            NAME       MODE        REPLICAS  IMAGE
 nvmq69qthhqz  cron_main  replicated  1/1       vfarcic/docker-flow-cron:latest
 ```
+
+#### Docker Flow Cron using Docker Stacks
+
+> Create the overlay network
+
+```docker network create -d overlay cron```
+
+> Create the cron stack 
+
+docker-compose.yml
+```
+version: "3"
+
+services:
+  cron:
+    image: vfarcic/docker-flow-cron
+    networks:
+      - cron
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8080:8080
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  
+  swarm-listener:
+    image: vfarcic/docker-flow-swarm-listener
+    networks:
+      - cron
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DF_NOTIFY_CREATE_SERVICE_URL=http://cron:8080/v1/docker-flow-cron/job/create
+      - DF_NOTIFY_REMOVE_SERVICE_URL=http://cron:8080/v1/docker-flow-cron/job/remove
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+networks:
+  cron:
+    external: true
+```
+
+Deploy the stack above by executing ```docker stack deploy -c docker-compose.yml cron```
+
+
+## Docker Flow Swarm Listener 
+
+#### Docker Flow Cron using Docker Services
+
+> Create Docker Flow Swarm Listener
+
+```
+docker service create --name swarm-listener \
+    --network cron \
+    --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
+    -e DF_NOTIFY_CREATE_SERVICE_URL=http://cron:8080/v1/docker-flow-cron/create \
+    -e DF_NOTIFY_REMOVE_SERVICE_URL=http://cron:8080/v1/docker-flow-cron/remove \
+    --constraint 'node.role==manager' \
+    vfarcic/docker-flow-swarm-listener
+```
+
+> Create Docker Flow Cron
+
+```
+docker service create --name cron \
+    --network cron \
+    --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
+    -p 8080:8080 \
+    --constraint 'node.role==manager' \
+    vfarcic/docker-flow-cron
+```
+
+#### Example: Scheduling a Docker Service
+
+Now that the cron stack is up and running we can add our first scheduled Docker Service.
+The example service below will run ```echo "Hello World"``` every 10 seconds using an Alpine image.
+
+> Example: Scheduled job using Docker Services
+
+```
+docker service create --name cronjob \
+    --network cron --replicas 0 \
+    --restart-condition=none \
+    -l "com.df.notify=true" \
+    -l "com.df.cron=true" \
+    -l "com.df.cron.name=cronjob" \
+    -l "com.df.cron.image=alpine" \
+    -l "com.df.cron.command=echo Hello World" \
+    -l "com.df.cron.schedule=@every 10s" \
+    alpine \
+    echo Hello world
+```
+
+The example below is a more realistic use case for *Docker Flow Cron*.
+It will remove unusued docker data by running ```docker system prune``` every day.
+
+> Example: Scheduling a docker command to run on the host
+```
+docker service create --name docker_cleanup \
+    --network cron --replicas 0 \
+    --restart-condition=none \
+    --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
+    -l "com.df.notify=true" \
+    -l "com.df.cron=true" \
+    -l "com.df.cron.name=docker_cleanup" \
+    -l "com.df.cron.image=docker" \
+    -l "com.df.cron.command=docker system prune -f" \
+    -l "com.df.cron.schedule=@daily" \
+    docker \
+    docker system prune -f
+```
