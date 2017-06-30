@@ -1,3 +1,10 @@
+FROM golang:1.6 AS build
+ADD . /src
+WORKDIR /src
+RUN go get -d -v -t
+RUN go test --cover ./... --run UnitTest
+RUN go build -v -o docker-flow-cron
+
 FROM alpine:3.5
 MAINTAINER 	Viktor Farcic <viktor@farcic.com>
 
@@ -17,5 +24,5 @@ RUN set -x \
 	&& rm docker.tgz \
 	&& apk del curl
 
-COPY docker-flow-cron /usr/local/bin/docker-flow-cron
+COPY --from=build /src/docker-flow-cron /usr/local/bin/docker-flow-cron
 RUN chmod +x /usr/local/bin/docker-flow-cron
