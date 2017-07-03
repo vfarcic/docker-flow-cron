@@ -11,6 +11,16 @@ pipeline {
         checkout scm
         sh "docker image build -t vfarcic/docker-flow-cron ."
         sh "docker image build -t vfarcic/docker-flow-cron-docs -f Dockerfile.docs ."
+        sh "docker image build -t vfarcic/docker-flow-cron-test -f Dockerfile.test ."
+      }
+    }
+    stage("test") {
+      environment {
+        HOST_IP = "build.dockerflow.com"
+        DOCKER_HUB_USER = "vfarcic"
+      }
+      steps {
+        sh "docker-compose -f docker-compose-test.yml run --rm unit"
       }
     }
     stage("release") {
