@@ -7,7 +7,6 @@ services:
     image: vfarcic/docker-flow-cron-test
     volumes:
       - .:/usr/src/myapp
-      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /usr/src/myapp
     command: bash -c "go get -d -v -t ./... && go test --cover ./... -p=1 && go build -v -o docker-flow-cron"
 
