@@ -2,7 +2,6 @@ FROM golang:1.7 AS build
 ADD . /src
 WORKDIR /src
 RUN go get -d -v -t ./...
-RUN go test --cover ./... --run UnitTest
 RUN go build -v -o docker-flow-cron
 
 FROM alpine:3.5

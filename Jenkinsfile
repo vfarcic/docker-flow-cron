@@ -10,8 +10,18 @@ pipeline {
       steps {
         checkout scm
         sh "docker image build -t vfarcic/docker-flow-cron ."
-        sh "docker image build -t vfarcic/docker-flow-cron-docs -f Dockerfile.docs ."
+        sh "docker tag vfarcic/docker-flow-cron vfarcic/docker-flow-cron:beta"
+        withCredentials([usernamePassword(
+          credentialsId: "docker",
+          usernameVariable: "USER",
+          passwordVariable: "PASS"
+        )]) {
+          sh "docker login -u $USER -p $PASS"
+        }
+        sh "docker push vfarcic/docker-flow-cron:beta"
         sh "docker image build -t vfarcic/docker-flow-cron-test -f Dockerfile.test ."
+        sh "docker push vfarcic/docker-flow-cron-test"
+        sh "docker image build -t vfarcic/docker-flow-cron-docs -f Dockerfile.docs ."
       }
     }
     stage("test") {
