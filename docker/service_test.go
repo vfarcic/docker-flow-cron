@@ -2,10 +2,11 @@ package docker
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/suite"
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type ServiceTestSuite struct {
@@ -43,7 +44,7 @@ func (s *ServiceTestSuite) Test_New_SetsClient() {
 func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 	defer s.removeAllServices()
 	s.createTestService("util-1", "-l com.df.cron=true")
-	s.createTestService("util-2", "-l com.df.test=true")
+	s.createTestService("util-2", "-l com.df.cron.test=true")
 	services, _ := New("unix:///var/run/docker.sock")
 
 	actual, _ := services.GetServices("")
@@ -159,6 +160,6 @@ func (s *ServiceTestSuite) removeAllServices() {
 	exec.Command(
 		"/bin/sh",
 		"-c",
-		`docker service rm $(docker service ls -q -f label=com.df.test=true)`,
+		`docker service rm $(docker service ls -q -f label=com.df.cron.test=true)`,
 	).CombinedOutput()
 }

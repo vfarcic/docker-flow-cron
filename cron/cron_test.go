@@ -2,13 +2,14 @@ package cron
 
 import (
 	"fmt"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/suite"
-	rcron "gopkg.in/robfig/cron.v2"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/suite"
+	rcron "gopkg.in/robfig/cron.v2"
 )
 
 type CronTestSuite struct {
@@ -227,11 +228,11 @@ func (s CronTestSuite) Test_GetJobs_ReturnsListOfJobs() {
 		)
 		exec.Command("/bin/sh", "-c", cmd).CombinedOutput()
 		expected[name] = JobData{
-			Name:     name,
+			Name:        name,
 			ServiceName: name,
-			Image:    "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8",
-			Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
-			Schedule: "@every 1s",
+			Image:       "alpine:3.5@sha256:dfbd4a3a8ebca874ebd2474f044a0b33600d4523d03b0df76e5c5986cb02d7e8",
+			Command:     `docker service create --restart-condition none alpine echo "Hello World!"`,
+			Schedule:    "@every 1s",
 		}
 	}
 
@@ -298,7 +299,7 @@ func (s CronTestSuite) Test_RemoveJob_RemovesService() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
-/*
+
 func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 	data := JobData{
 		Name:     "my-job",
@@ -311,20 +312,21 @@ func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 	defer func() {
 		c.Stop()
 		c.RemoveJob("my-job")
-		c.RemoveJob("my-other-job")
+		c.RemoveJob("my-job-2")
 	}()
 	c.AddJob(data)
-	data.Name = "my-other-job"
+	data.Name = "my-job-2"
 	c.AddJob(data)
-	s.verifyServicesAreCreated("my-job", 1)
 
+	s.verifyServicesAreCreated("my-job", 2)
+
+	before := s.getServiceCount("my-job")
 	c.RemoveJob("my-job")
 
-	before := s.getServiceCount("my-other-job")
 	counter := 0
 	for {
-		after := s.getServiceCount("my-other-job")
-		if after > before {
+		after := s.getServiceCount("my-job")
+		if after == (before - 1) {
 			break
 		}
 		counter++
@@ -335,7 +337,7 @@ func (s CronTestSuite) Test_RemoveJob_DoesNotRemoveOtherServices() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
-*/
+
 func (s CronTestSuite) Test_RemoveJob_ReturnsError_WhenRemoveServicesFail() {
 	mock := ServicerMock{
 		RemoveServicesMock: func(jobName string) error {
@@ -398,7 +400,7 @@ func (s CronTestSuite) Test_RescheduleJobs_ReturnsError_WhenGetServicesFail() {
 
 func (s CronTestSuite) getServiceCount(jobName string) int {
 	command := fmt.Sprintf(
-		`docker service ls -q -f label=com.df.cron=true -f "label=com.df.cron.name=%s"`,
+		`docker service ls -f label=com.df.cron=true -f "label=com.df.cron.name=" | grep %s | awk '{print $1}'`,
 		jobName,
 	)
 	out, _ := exec.Command(

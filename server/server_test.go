@@ -1,18 +1,19 @@
 package server
 
 import (
-	"../cron"
-	"../docker"
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
-	"bytes"
 	"time"
+
+	"../cron"
+	"../docker"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/suite"
 )
 
 type ServerTestSuite struct {
@@ -128,17 +129,17 @@ func (s *ServerTestSuite) Test_JobPutHandler_GetRequest_ReturnsJobDetails() {
 		bytes.NewBufferString(body),
 	)
 	job := cron.JobData{
-		Name:        "my-job",
-		Image:       "alpine",
-		Command:     "echo hello world",
-		Schedule:    "@every 10s",
-		Created:     true,
+		Name:     "my-job",
+		Image:    "alpine",
+		Command:  "echo hello world",
+		Schedule: "@every 10s",
+		Created:  true,
 	}
 
 	expected := ResponseDetails{
 		Status:  "OK",
 		Message: "Job my-job has been scheduled",
-		Job: job,
+		Job:     job,
 	}
 	actual := ResponseDetails{}
 	rwMock := ResponseWriterMock{
@@ -161,7 +162,6 @@ func (s *ServerTestSuite) Test_JobPutHandler_GetRequest_ReturnsJobDetails() {
 
 	s.Equal(expected, actual)
 }
-
 
 func (s *ServerTestSuite) Test_JobPutHandler_ReturnsBadRequestWhenBodyIsNil() {
 	req, _ := http.NewRequest("PUT", "/v1/docker-flow-cron/job", nil)
@@ -390,7 +390,7 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 	muxVars = func(r *http.Request) map[string]string {
 		return map[string]string{"jobName": "my-job"}
 	}
-	defer exec.Command("/bin/sh", "-c", `docker service rm $(docker service ls)`).CombinedOutput()
+	defer exec.Command("/bin/sh", "-c", `docker service rm $(docker service ls -q -f label=com.df.cron=true)`).CombinedOutput()
 	name := "my-job"
 	req, _ := http.NewRequest(
 		"GET",
@@ -422,11 +422,11 @@ func (s *ServerTestSuite) Test_JobDetailsHandler_ReturnsJobDetails() {
 		}
 	}
 	job := cron.JobData{
-		Name:     name,
-		Image:    image,
+		Name:        name,
+		Image:       image,
 		ServiceName: name,
-		Command:  `docker service create --restart-condition none alpine echo "Hello World!"`,
-		Schedule: "@every 1s",
+		Command:     `docker service create --restart-condition none alpine echo "Hello World!"`,
+		Schedule:    "@every 1s",
 	}
 	expected := ResponseDetails{
 		Status:     "OK",
