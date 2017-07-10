@@ -1,3 +1,5 @@
+import java.text.SimpleDateFormat
+
 pipeline {
   agent {
     label "test"
@@ -9,6 +11,11 @@ pipeline {
   stages {
     stage("build") {
       steps {
+        script {
+          def dateFormat = new SimpleDateFormat("yy.MM")
+          currentBuild.displayName = dateFormat.format(new Date()) + "." + env.BUILD_NUMBER
+        }
+
         checkout scm
         sh "docker image build -t vfarcic/docker-flow-cron ."
         sh "docker tag vfarcic/docker-flow-cron vfarcic/docker-flow-cron:beta"
@@ -46,11 +53,11 @@ pipeline {
         )]) {
           sh "docker login -u $USER -p $PASS"
         }
-        sh "docker tag vfarcic/docker-flow-cron vfarcic/docker-flow-cron:0.${env.BUILD_NUMBER}"
-        sh "docker push vfarcic/docker-flow-cron:0.${env.BUILD_NUMBER}"
+        sh "docker tag vfarcic/docker-flow-cron vfarcic/docker-flow-cron:${currentBuild.displayName}"
+        sh "docker push vfarcic/docker-flow-cron:${currentBuild.displayName}"
         sh "docker push vfarcic/docker-flow-cron"
-        sh "docker tag vfarcic/docker-flow-cron-docs vfarcic/docker-flow-cron-docs:0.${env.BUILD_NUMBER}"
-        sh "docker push vfarcic/docker-flow-cron-docs:0.${env.BUILD_NUMBER}"
+        sh "docker tag vfarcic/docker-flow-cron-docs vfarcic/docker-flow-cron-docs:${currentBuild.displayName}"
+        sh "docker push vfarcic/docker-flow-cron-docs:${currentBuild.displayName}"
         sh "docker push vfarcic/docker-flow-cron-docs"
       }
     }
@@ -62,7 +69,7 @@ pipeline {
         label "prod"
       }
       steps {
-        sh "docker service update --image vfarcic/docker-flow-cron-docs:0.${env.BUILD_NUMBER} cron_docs"
+        sh "docker service update --image vfarcic/docker-flow-cron-docs:${currentBuild.displayName} cron_docs"
       }
     }
   }
