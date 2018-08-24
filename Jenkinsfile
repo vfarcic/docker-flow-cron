@@ -15,8 +15,6 @@ pipeline {
           def dateFormat = new SimpleDateFormat("yy.MM")
           currentBuild.displayName = dateFormat.format(new Date()) + "." + env.BUILD_NUMBER
         }
-
-        checkout scm
         sh "docker image build -t vfarcic/docker-flow-cron ."
         sh "docker tag vfarcic/docker-flow-cron vfarcic/docker-flow-cron:beta"
         withCredentials([usernamePassword(
@@ -69,7 +67,7 @@ pipeline {
         label "prod"
       }
       steps {
-        sh "docker service update --image vfarcic/docker-flow-cron-docs:${currentBuild.displayName} cron_docs"
+        sh "helm upgrade -i docker-flow-swarm-listener helm/docker-flow-swarm-listener --namespace df --set image.tag=${currentBuild.displayName}"
       }
     }
   }
