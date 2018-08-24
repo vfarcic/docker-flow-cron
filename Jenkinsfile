@@ -67,7 +67,7 @@ pipeline {
         label "prod"
       }
       steps {
-        sh "helm upgrade -i docker-flow-swarm-listener helm/docker-flow-swarm-listener --namespace df --set image.tag=${currentBuild.displayName}"
+        sh "helm upgrade -i docker-flow-cron helm/docker-flow-cron --namespace df --set image.tag=${currentBuild.displayName}"
       }
     }
   }
