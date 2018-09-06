@@ -5,8 +5,8 @@ ingress:
   - cron.dockerflow.com
 resources:
   limits:
-   cpu: 0.1
-   memory: 40Mi
+   cpu: 10m
+   memory: 6Mi
   requests:
-   cpu: 0.05
-   memory: 20Mi
+   cpu: 5m
+   memory: 3Mi
